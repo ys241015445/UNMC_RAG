@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    environment:
+      UNMC_RAG_APP_NAME: ${UNMC_RAG_APP_NAME:-UNMC 课程助手}
+      UNMC_RAG_SCHOOL_EMAIL_DOMAIN: ${UNMC_RAG_SCHOOL_EMAIL_DOMAIN:-unmc.edu}
+      UNMC_RAG_COURSE_TERMS: ${UNMC_RAG_COURSE_TERMS:-高等数学,微积分,线性代数}
+      UNMC_RAG_MINIMUM_RETRIEVAL_SCORE: ${UNMC_RAG_MINIMUM_RETRIEVAL_SCORE:-0.75}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-unmc_rag}
+      POSTGRES_USER: ${POSTGRES_USER:-unmc_rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-unmc_rag} -d ${POSTGRES_DB:-unmc_rag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

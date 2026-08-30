@@ -1,0 +1,15 @@
+.DS_Store
+.env
+.pytest_cache/
+.ruff_cache/
+.venv/
+.venv312/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+htmlcov/
+data/uploads/*
+!data/uploads/.gitkeep
+backups/*
+!backups/.gitkeep
