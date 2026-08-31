@@ -21,6 +21,11 @@ dev = [
   "pytest-cov>=6.2",
   "ruff>=0.12",
 ]
+scrape = [
+  "httpx>=0.28",
+  "beautifulsoup4>=4.13",
+  "lxml>=5.4",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

@@ -111,6 +111,20 @@ pytest --cov=app --cov-report=term-missing
 ruff check app tests
 ```
 
+### 抓取 Current Students 公开页（独立脚本）
+
+不接入聊天 API。仅抓取 `www.nottingham.edu.my/CurrentStudents/` 前缀下的 HTML 正文；PDF 等附件只记链接。
+
+```bash
+pip install -e ".[scrape]"
+python scripts/scrape_current_students.py \
+  --out-dir data/scraped/current_students \
+  --max-pages 200 \
+  --delay 0.75
+```
+
+产物：`documents.jsonl`、`pages/*.md`、`index.json`、`attachments.jsonl`、`run_meta.json`（目录默认被 gitignore）。
+
 ### 常用环境变量
 
 | 变量 | 说明 |
