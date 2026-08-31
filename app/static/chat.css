@@ -1,0 +1,224 @@
+:root {
+  --ink: #13261f;
+  --ink-soft: #3a5348;
+  --paper: #f3efe6;
+  --paper-2: #e7efe8;
+  --accent: #1f6f5b;
+  --accent-deep: #0f4a3c;
+  --line: rgba(19, 38, 31, 0.14);
+  --danger: #8b2e2e;
+  --ok: #1f6f5b;
+  --warn: #8a5a12;
+  --shadow: 0 18px 50px rgba(19, 38, 31, 0.08);
+  --serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: var(--ink);
+  font-family: var(--sans);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #d9ebe3 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #efe6d4 0%, transparent 50%),
+    linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+}
+
+.page {
+  width: min(720px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 3.5rem 0 4rem;
+}
+
+.hero {
+  margin-bottom: 2rem;
+}
+
+.brand {
+  margin: 0 0 0.75rem;
+  font-family: var(--serif);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--accent-deep);
+}
+
+.hero h1 {
+  margin: 0 0 0.75rem;
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.lede {
+  margin: 0;
+  max-width: 38rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  font-size: 0.98rem;
+}
+
+.ask-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem 0 0.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.ask-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.ask-form input,
+.ask-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow);
+}
+
+.ask-form textarea {
+  resize: vertical;
+  min-height: 7rem;
+}
+
+.ask-form input:focus,
+.ask-form textarea:focus {
+  outline: 2px solid rgba(31, 111, 91, 0.35);
+  border-color: var(--accent);
+}
+
+.ask-form button {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.8rem 1.4rem;
+  background: var(--accent);
+  color: #f7fbf9;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.ask-form button:hover {
+  background: var(--accent-deep);
+  transform: translateY(-1px);
+}
+
+.ask-form button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
+.result {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  animation: rise 280ms ease;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: baseline;
+  margin-bottom: 1rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #d9ebe3;
+  color: var(--accent-deep);
+}
+
+.badge.is-refused {
+  background: #f3e0d8;
+  color: var(--danger);
+}
+
+.badge.is-error {
+  background: #f0e2e2;
+  color: var(--danger);
+}
+
+.reason {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.answer h2,
+.citations h2 {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.answer p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.citations ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.citations a {
+  color: var(--accent-deep);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding-top: 2rem;
+  }
+
+  .ask-form button {
+    width: 100%;
+    justify-self: stretch;
+  }
+}

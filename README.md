@@ -82,7 +82,8 @@ docker compose up -d db
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-浏览器访问 API 文档：<http://localhost:8000/docs>。
+浏览器打开问答页：<http://localhost:8000/>  
+API 文档：<http://localhost:8000/docs>。
 
 原型调用示例：
 
@@ -97,11 +98,22 @@ curl -X POST http://localhost:8000/api/v1/chat \
 
 ### Docker Compose 一键启动
 
+先准备 `.env`（至少设置数据库密码）与抓取语料：
+
 ```bash
+cp .env.example .env
+# 编辑 .env：设置 POSTGRES_PASSWORD=...
+# 若尚无语料：
+pip install -e ".[scrape]"
+python scripts/scrape_current_students.py
+
 docker compose up -d --build
 docker compose ps
 curl -s http://localhost:8000/health
 ```
+
+浏览器打开：<http://localhost:8000/>  
+Compose 会把 `./data/scraped` 只读挂载进容器，并启用本地关键词检索。
 
 ### 测试
 

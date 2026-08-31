@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ app_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/chat.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="brand">{{ app_name }}</p>
+      <h1>基于校内公开材料的问答</h1>
+      <p class="lede">
+        仅在检索到课程/学生服务材料证据时作答；证据不足会拒答。
+        原型使用学校邮箱标识，勿直接暴露公网。
+      </p>
+    </header>
+
+    <form id="chat-form" class="ask-form" autocomplete="on">
+      <label>
+        学校邮箱
+        <input
+          id="school-email"
+          name="school_email"
+          type="email"
+          required
+          placeholder="student@{{ school_email_domain }}"
+          value="student@{{ school_email_domain }}"
+        />
+      </label>
+      <label>
+        问题
+        <textarea
+          id="question"
+          name="question"
+          rows="4"
+          required
+          maxlength="2000"
+          placeholder="例如：When is the next graduation ceremony?"
+        ></textarea>
+      </label>
+      <button type="submit" id="submit-btn">提问</button>
+    </form>
+
+    <section id="result" class="result" hidden aria-live="polite">
+      <div class="result-meta">
+        <span id="status-badge" class="badge"></span>
+        <span id="reason-text" class="reason"></span>
+      </div>
+      <div id="answer-block" class="answer" hidden>
+        <h2>回答</h2>
+        <p id="answer-text"></p>
+      </div>
+      <div id="citations-block" class="citations" hidden>
+        <h2>引用</h2>
+        <ul id="citations-list"></ul>
+      </div>
+      <p id="error-text" class="error" hidden></p>
+    </section>
+  </div>
+  <script src="/static/chat.js" defer></script>
+</body>
+</html>
