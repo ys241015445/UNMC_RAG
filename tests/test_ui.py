@@ -10,12 +10,15 @@ def test_chat_page_renders() -> None:
     assert "Ask" in response.text
     assert 'id="chat-form"' in response.text
     assert "school-email" in response.text
+    assert 'id="notice-panel"' in response.text
 
 
 def test_static_assets_available() -> None:
     css = TestClient(app).get("/static/chat.css")
     js = TestClient(app).get("/static/chat.js")
     assert css.status_code == 200
-    assert "ask-form" in css.text
+    assert "notice-panel" in css.text
     assert js.status_code == 200
     assert "/api/v1/chat" in js.text
+    assert "Outside my lane" in js.text
+    assert "insufficient_evidence" in js.text
