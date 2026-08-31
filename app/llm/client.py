@@ -37,6 +37,7 @@ class OpenAICompatibleChatClient:
         *,
         temperature: float = 0.2,
         max_tokens: int = 1024,
+        disable_thinking: bool = True,
     ) -> str:
         if not self.enabled:
             raise LLMError("LLM is not configured")
@@ -48,6 +49,10 @@ class OpenAICompatibleChatClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        # GLM-4.5* may spend the whole budget on thinking and return empty content.
+        if disable_thinking:
+            payload["thinking"] = {"type": "disabled"}
+
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
@@ -63,10 +68,17 @@ class OpenAICompatibleChatClient:
             raise LLMError(f"LLM response is not JSON: {error}") from error
 
         try:
-            content = data["choices"][0]["message"]["content"]
+            message = data["choices"][0]["message"]
         except (KeyError, IndexError, TypeError) as error:
-            raise LLMError("LLM response missing choices[0].message.content") from error
+            raise LLMError("LLM response missing choices[0].message") from error
 
-        if not isinstance(content, str) or not content.strip():
-            raise LLMError("LLM returned empty content")
-        return content.strip()
+        content = message.get("content") if isinstance(message, dict) else None
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+        # Some GLM builds put usable text only in reasoning_content.
+        reasoning = message.get("reasoning_content") if isinstance(message, dict) else None
+        if isinstance(reasoning, str) and reasoning.strip():
+            return reasoning.strip()
+
+        raise LLMError("LLM returned empty content")
