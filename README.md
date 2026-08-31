@@ -167,8 +167,9 @@ curl -X POST http://localhost:8000/api/v1/chat \
 | 变量 | 说明 |
 |------|------|
 | `DATABASE_URL` | 下一阶段数据库接线预留；当前 M0 API 尚未读取 |
-| `LLM_API_BASE` | 外部模型 API 基址（后续接入） |
-| `LLM_API_KEY` | API 密钥（后续接入） |
+| `LLM_API_BASE` | 外部模型 API 基址（智谱默认 `https://open.bigmodel.cn/api/paas/v4/`） |
+| `LLM_API_KEY` | API 密钥（写入本地 `.env`，勿提交 Git） |
+| `LLM_MODEL` | 聊天模型名，例如 `glm-4.5-air` |
 | `UNMC_RAG_SCHOOL_EMAIL_DOMAIN` | 允许的学校邮箱域 |
 | `UNMC_RAG_COURSE_TERMS` | 原型主题门禁使用的课程关键词 |
 | `UNMC_RAG_MINIMUM_RETRIEVAL_SCORE` | 最低证据分数 |

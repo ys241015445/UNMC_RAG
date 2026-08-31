@@ -10,6 +10,10 @@ services:
       UNMC_RAG_CHUNK_SIZE: ${UNMC_RAG_CHUNK_SIZE:-500}
       UNMC_RAG_CHUNK_OVERLAP: ${UNMC_RAG_CHUNK_OVERLAP:-80}
       UNMC_RAG_RETRIEVAL_TOP_K: ${UNMC_RAG_RETRIEVAL_TOP_K:-5}
+      LLM_API_BASE: ${LLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4/}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-glm-4.5-air}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
     volumes:
       # 挂载本地抓取语料；宿主机需先跑 scraper 或准备 documents.jsonl
       - ./data/scraped:/app/data/scraped:ro

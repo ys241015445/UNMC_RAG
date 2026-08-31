@@ -6,17 +6,11 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import create_api_router
 from app.auth.policy import SchoolEmailPolicy
 from app.config import get_settings
-from app.guardrails.policy import GuardrailPolicy
-from app.rag.factory import build_retriever
-from app.rag.service import ChatService
+from app.rag.factory import build_chat_service
 from app.web.ui import create_ui_router
 
 settings = get_settings()
-chat_service = ChatService(
-    guardrails=GuardrailPolicy(course_terms=settings.course_term_set),
-    retriever=build_retriever(settings),
-    minimum_score=settings.minimum_retrieval_score,
-)
+chat_service = build_chat_service(settings)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
