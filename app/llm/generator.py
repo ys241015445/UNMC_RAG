@@ -1,14 +1,17 @@
-"""基于检索证据生成回答。"""
+"""Generate answers from retrieved evidence."""
 
 from __future__ import annotations
 
-from app.llm.client import LLMError, OpenAICompatibleChatClient
+from app.llm.client import OpenAICompatibleChatClient
 from app.rag.contracts import RetrievedChunk
 
 SYSTEM_PROMPT = (
-    "你是校内课程与学生服务问答助手。只能根据提供的【证据】回答。"
-    "若证据不足以回答，明确说无法根据现有材料确定，不要编造。"
-    "回答简洁、准确；可使用用户提问的语言。不要输出与证据无关的内容。"
+    "You are a campus course and student-services Q&A assistant. "
+    "Answer only from the provided [Evidence]. "
+    "If the evidence is insufficient, say you cannot determine the answer from the "
+    "available materials—do not invent facts. "
+    "Be concise and accurate; reply in the same language as the user question. "
+    "Do not add content unrelated to the evidence."
 )
 
 
@@ -31,9 +34,9 @@ class EvidenceAnswerGenerator:
             )
         evidence = "\n\n".join(evidence_blocks)
         user_prompt = (
-            f"【问题】\n{question}\n\n"
-            f"【证据】\n{evidence}\n\n"
-            "请仅依据证据作答。"
+            f"[Question]\n{question}\n\n"
+            f"[Evidence]\n{evidence}\n\n"
+            "Answer using only the evidence."
         )
         return self._client.complete(
             [
@@ -43,4 +46,4 @@ class EvidenceAnswerGenerator:
         )
 
 
-__all__ = ["EvidenceAnswerGenerator", "LLMError", "OpenAICompatibleChatClient"]
+__all__ = ["EvidenceAnswerGenerator", "OpenAICompatibleChatClient"]

@@ -1,1 +1,1 @@
-"""数据库模型将在接入 PostgreSQL 迁移时放置于此。"""
+"""ORM models will live here when PostgreSQL migrations are wired."""

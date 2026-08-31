@@ -1,4 +1,4 @@
-"""检索器实现：占位空检索与本地关键词语料检索。"""
+"""Retriever implementations: empty placeholder and local keyword corpus search."""
 
 from __future__ import annotations
 
@@ -36,14 +36,14 @@ class _IndexedChunk:
 
 
 class EmptyRetriever:
-    """占位检索器；接入语料或 pgvector 前安全地返回无证据。"""
+    """Placeholder retriever that safely returns no evidence before a corpus is wired."""
 
     def search(self, question: str) -> list[RetrievedChunk]:
         return []
 
 
 class LocalKeywordRetriever:
-    """无向量依赖的原型检索：按问句词项覆盖率对本地切片打分。"""
+    """Prototype retriever without vectors: scores local chunks by question-token overlap."""
 
     def __init__(self, chunks: list[_IndexedChunk], *, top_k: int = 5) -> None:
         self._chunks = chunks

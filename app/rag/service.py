@@ -27,7 +27,7 @@ class ChatResult:
 
 
 class ChatService:
-    """执行限域、证据阈值，并在配置 LLM 时基于证据生成回答。"""
+    """Apply guardrails and evidence thresholds; generate with an LLM when configured."""
 
     def __init__(
         self,

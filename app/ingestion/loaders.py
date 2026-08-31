@@ -1,4 +1,4 @@
-"""从抓取产物加载可切片文档。"""
+"""Load chunkable documents from scrape outputs."""
 
 from __future__ import annotations
 

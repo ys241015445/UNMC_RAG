@@ -41,7 +41,7 @@ def create_api_router(
         except ValueError as error:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="原型环境需要有效的学校邮箱标识",
+                detail="A valid school email identity is required in this prototype",
             ) from error
 
         result = chat_service.answer(payload.question)

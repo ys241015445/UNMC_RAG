@@ -10,7 +10,7 @@ from app.rag.service import AnswerGenerator, ChatService
 
 
 def build_retriever(settings: Settings | None = None) -> Retriever:
-    """按配置构建检索器；未配置或语料缺失时回退到空检索。"""
+    """Build a retriever from settings; fall back to empty when corpus is missing."""
     resolved = settings or get_settings()
     corpus = resolved.corpus_path.strip()
     if not corpus:

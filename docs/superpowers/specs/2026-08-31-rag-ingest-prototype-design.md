@@ -1,7 +1,7 @@
 # Local Corpus RAG Ingest Prototype
 
-**日期:** 2026-08-31  
-**分支:** `feat/rag-ingest-prototype`
+**Date:** 2026-08-31  
+**Branch:** `feat/rag-ingest-prototype`
 
 ## Goal
 

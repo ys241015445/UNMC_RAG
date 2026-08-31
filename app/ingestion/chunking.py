@@ -1,4 +1,4 @@
-"""将长文本切成适合检索的片段。"""
+"""Split long text into retrieval-friendly chunks."""
 
 from __future__ import annotations
 

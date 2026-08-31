@@ -29,8 +29,9 @@ def test_load_documents_jsonl(tmp_path: Path) -> None:
     assert "Ceremony" in docs[0].text
 
 
-def test_tokenize_english_and_chinese() -> None:
+def test_tokenize_english_and_cjk() -> None:
     assert tokenize("Shuttle Bus") == ["shuttle", "bus"]
+    # Keep a CJK sample to verify Unicode tokenization still works.
     chinese = tokenize("高等数学考试")
     assert "高" in chinese
     assert "学" in chinese

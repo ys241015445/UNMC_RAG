@@ -17,7 +17,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="仅回答有校内课程资料证据支持的问题。",
+    description="Answers only questions supported by on-campus course evidence.",
 )
 app.include_router(
     create_ui_router(

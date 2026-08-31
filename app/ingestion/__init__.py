@@ -1,1 +1,1 @@
-"""课程资料采集边界。"""
+"""Course-material ingest boundaries."""

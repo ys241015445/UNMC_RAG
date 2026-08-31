@@ -10,6 +10,6 @@ class Identity:
 
 
 class IdentityProvider(Protocol):
-    """邮箱魔法链接和后续学校 SSO 共用的身份接口。"""
+    """Shared identity interface for email magic links and later campus SSO."""
 
     def resolve(self, credential: str) -> Identity: ...

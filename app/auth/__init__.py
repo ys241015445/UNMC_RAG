@@ -1,1 +1,1 @@
-"""身份认证边界。"""
+"""Authentication boundaries."""

@@ -4,9 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "UNMC 课程助手"
+    app_name: str = "UNMC Course Assistant"
     school_email_domain: str = "unmc.edu"
-    course_terms: str = "高等数学,微积分,线性代数"
+    course_terms: str = (
+        "calculus,linear algebra,graduation,shuttle,counselling,"
+        "timetable,appeals,examination,visa,wellbeing,amenities"
+    )
     minimum_retrieval_score: float = 0.75
     corpus_path: str = ""
     chunk_size: int = 500
@@ -25,7 +28,7 @@ class Settings(BaseSettings):
 
 
 class LLMSettings(BaseSettings):
-    """读取 .env 中的 LLM_*（智谱 OpenAI 兼容）。"""
+    """Loads LLM_* from .env (Zhipu OpenAI-compatible API)."""
 
     api_base: str = "https://open.bigmodel.cn/api/paas/v4/"
     api_key: str = ""

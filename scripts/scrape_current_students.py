@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""白名单抓取 UNM Current Students 公开 HTML，输出 RAG 友好结构化材料。"""
+"""Allowlisted crawl of UNM Current Students public HTML for RAG-ready materials."""
 
 from __future__ import annotations
 
@@ -276,7 +276,7 @@ def crawl(
 ) -> tuple[list[PageRecord], list[dict]]:
     seed_url = normalize_url(seed)
     if not in_scope(seed_url):
-        raise ValueError(f"seed 不在白名单范围内: {seed_url}")
+        raise ValueError(f"seed is outside the allowlist: {seed_url}")
 
     queue: deque[str] = deque([seed_url])
     seen: set[str] = {seed_url}
@@ -322,7 +322,7 @@ def crawl(
                     if link not in seen and in_scope(link) and not is_attachment(link):
                         seen.add(link)
                         queue.append(link)
-            except Exception as exc:  # noqa: BLE001 - 单页失败不中断整次运行
+            except Exception as exc:  # noqa: BLE001 - one page failure must not abort the run
                 errors.append({"url": url, "error": str(exc), "kind": "exception"})
             if delay > 0 and queue and len(records) < max_pages:
                 time.sleep(delay)
@@ -354,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     write_outputs(records, out_dir=args.out_dir, errors=errors, seed=normalize_url(args.seed))
     print(
-        f"抓取完成: pages={len(records)} errors={len(errors)} out={args.out_dir.resolve()}"
+        f"Crawl finished: pages={len(records)} errors={len(errors)} out={args.out_dir.resolve()}"
     )
     return 0
 

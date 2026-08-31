@@ -1,293 +1,293 @@
-# 产品需求文档（PRD）
+# Product Requirements Document (PRD)
 
-## 院系级校内课程 RAG MVP
+## Department-Level Internal Course RAG MVP
 
-| 字段 | 内容 |
+| Field | Content |
 |------|------|
-| 版本 | 0.1.0（MVP 骨架） |
-| 状态 | 草案 |
-| 目标用户规模 | 200–2000 名学生 |
-| 峰值并发 | 10–50 |
+| Version | 0.1.0 (MVP Skeleton) |
+| Status | Draft |
+| Target User Base | 200–2,000 students |
+| Peak Concurrency | 10–50 |
 
 ---
 
-## 1. 背景
+## 1. Background
 
-院系需要为校内课程提供基于课程材料的问答能力，帮助学生快速检索 syllabus、讲义、作业说明与 FAQ，同时避免模型自由发挥或回答与课程无关的内容。
+The department needs a course-material-based question-answering capability for internal courses, helping students quickly retrieve syllabi, lecture notes, assignment instructions, and FAQs while preventing the model from improvising or answering content unrelated to the courses.
 
-现有方案（通用 ChatGPT、公开 RAG 平台）存在三类问题：
+Existing solutions (general-purpose ChatGPT and public RAG platforms) present three types of problems:
 
-1. **身份与范围不可控**：无法限定为校内已认证学生，也无法按课程/院系隔离知识。
-2. **成本与运维复杂**：自建大模型集群或重度 SaaS 订阅，对院系预算与 IT 能力不友好。
-3. **合规风险**：学生提问与检索日志涉及教学数据，需校内可控存储与可审计策略。
+1. **Uncontrollable identity and scope**: Access cannot be restricted to authenticated students, nor can knowledge be isolated by course or department.
+2. **Cost and operational complexity**: Self-hosted large-model clusters or substantial SaaS subscriptions are unsuitable for departmental budgets and IT capabilities.
+3. **Compliance risks**: Student questions and retrieval logs involve educational data and require institution-controlled storage and auditable policies.
 
-本 MVP 采用 **单机 Docker Compose + FastAPI + PostgreSQL/pgvector + 外部模型 API** 的低成本架构，优先支持 **文件上传** 作为知识来源；LMS 同步与网页抓取列入后续迭代。认证采用 **学校邮箱魔法链接**；正式版可替换为校内 SSO，而不改变核心业务模型。
+This MVP uses a low-cost architecture based on **single-host Docker Compose + FastAPI + PostgreSQL/pgvector + external model APIs**, with **file upload** as the primary knowledge source. LMS synchronization and web crawling are planned for later iterations. Authentication uses **school email magic links**; the production version can replace this with institutional SSO without changing the core business model.
 
-> **重要声明**：系统采用输入、主题、证据、输出四层限域与保守拒答策略，**无法保证 100% 限域**。任何回答均应以课程材料为准，用户与管理员需理解残余风险并配合审计与内容治理。
+> **Important Notice**: The system uses four layers of scope control—input, topic, evidence, and output—together with a conservative refusal strategy, but **cannot guarantee 100% scope containment**. All answers must be verified against course materials. Users and administrators must understand the residual risks and support auditing and content governance.
 
 ---
 
-## 2. 目标与非目标
+## 2. Goals and Non-Goals
 
-### 2.1 目标
+### 2.1 Goals
 
-| 编号 | 目标 |
+| ID | Goal |
 |------|------|
-| G1 | 已认证学生可对 **全部已发布课程** 发起问答（MVP 不做选课级 ACL）。 |
-| G2 | 回答 **仅基于已入库、已发布** 的课程文档片段，并附引用来源。 |
-| G3 | 对越界提问、无证据问题、敏感或合规风险内容 **保守拒答**。 |
-| G4 | 支持管理员上传/发布课程文档，完成切片、向量化与索引。 |
-| G5 | 单机部署可支撑 200–2000 学生规模与 10–50 峰值并发。 |
-| G6 | 提问与检索过程可记录审计日志，满足院系基本合规需求。 |
+| G1 | Authenticated students can ask questions about **all published courses** (the MVP does not implement enrollment-level ACLs). |
+| G2 | Answers are based **only on ingested, published** course document chunks and include source citations. |
+| G3 | **Conservatively refuse** out-of-scope questions, questions without evidence, and sensitive or compliance-risk content. |
+| G4 | Allow administrators to upload and publish course documents and complete chunking, vectorization, and indexing. |
+| G5 | A single-host deployment supports 200–2,000 students and peak concurrency of 10–50. |
+| G6 | Log the question and retrieval process for auditing to meet basic departmental compliance requirements. |
 
-### 2.2 非目标（MVP 不做）
+### 2.2 Non-Goals (Not Included in the MVP)
 
-| 编号 | 非目标 |
+| ID | Non-Goal |
 |------|--------|
-| NG1 | 完整 LMS（Canvas/Moodle）双向集成与自动同步。 |
-| NG2 | 多租户跨院系 SaaS 化、多区域高可用集群。 |
-| NG3 | 本地部署或微调大模型；MVP 仅调用 **外部模型 API**。 |
-| NG4 | 移动端原生 App、复杂协作编辑、实时多人白板。 |
-| NG5 | 100% 防幻觉、100% 限域保证（见拒答策略与风险章节）。 |
-| NG6 | 按选课关系限制课程可见性（正式版可选）。 |
+| NG1 | Full bidirectional LMS (Canvas/Moodle) integration and automatic synchronization. |
+| NG2 | Multi-tenant, cross-department SaaS deployment or multi-region high-availability clusters. |
+| NG3 | Local deployment or fine-tuning of large models; the MVP only calls **external model APIs**. |
+| NG4 | Native mobile apps, advanced collaborative editing, or real-time multi-user whiteboards. |
+| NG5 | A 100% hallucination-free or 100% scope-containment guarantee (see the Refusal Strategy and Risks sections). |
+| NG6 | Restricting course visibility based on enrollment relationships (optional in the production version). |
 
 ---
 
-## 3. 角色
+## 3. Roles
 
-| 角色 | 描述 | MVP 权限 |
+| Role | Description | MVP Permissions |
 |------|------|----------|
-| **学生（Student）** | 使用学校邮箱认证的在校生 | 浏览已发布课程列表；对任意已发布课程提问；查看自己的会话历史（可选） |
-| **课程管理员（Course Admin）** | 院系教师或助教 | 创建/编辑课程；上传文档；发布/下架课程；查看本课程问答统计与拒答日志 |
-| **系统管理员（Sys Admin）** | 院系 IT 或项目负责人 | 管理用户与角色；配置模型 API、限流、全局策略；查看全站审计日志 |
-| **访客（Anonymous）** | 未认证用户 | 仅可访问登录页与静态说明；**不可** 提问或检索 |
+| **Student** | A currently enrolled student authenticated with a school email address | Browse the published course list; ask questions about any published course; view their own conversation history (optional) |
+| **Course Admin** | Department faculty member or teaching assistant | Create/edit courses; upload documents; publish/unpublish courses; view Q&A statistics and refusal logs for their courses |
+| **Sys Admin** | Department IT staff or project owner | Manage users and roles; configure model APIs, rate limits, and global policies; view system-wide audit logs |
+| **Anonymous** | Unauthenticated user | Access only the login page and static information; **cannot** ask questions or perform retrieval |
 
 ---
 
-## 4. 用户故事
+## 4. User Stories
 
-### 4.1 认证
+### 4.1 Authentication
 
-- **US-A1**：作为学生，我希望用 `@school.edu` 邮箱收取魔法链接，以便无需记忆密码即可登录。
-- **US-A2**：作为系统管理员，我希望魔法链接一次性、短时效，以便降低链接泄露风险。
-- **US-A3（正式版）**：作为 IT，我希望将认证模块替换为校内 SSO/OIDC，而不重写问答核心逻辑。
+- **US-A1**: As a student, I want to receive a magic link at my `@school.edu` email address so that I can log in without remembering a password.
+- **US-A2**: As a Sys Admin, I want magic links to be single-use and short-lived so that the risk of link leakage is reduced.
+- **US-A3 (Production)**: As an IT administrator, I want to replace the authentication module with institutional SSO/OIDC without rewriting the core Q&A logic.
 
-### 4.2 课程与文档
+### 4.2 Courses and Documents
 
-- **US-C1**：作为课程管理员，我希望创建课程并上传 PDF/Markdown/TXT，以便学生问答有依据。
-- **US-C2**：作为课程管理员，我希望文档解析完成后才能发布课程，以免学生检索到空索引。
-- **US-C3**：作为学生，我希望看到所有 **已发布** 课程，以便跨课程查阅院系公开材料。
+- **US-C1**: As a Course Admin, I want to create courses and upload PDF/Markdown/TXT files so that student Q&A is grounded in evidence.
+- **US-C2**: As a Course Admin, I want courses to be publishable only after document processing is complete so that students do not retrieve from an empty index.
+- **US-C3**: As a student, I want to see all **published** courses so that I can consult department materials across courses.
 
-### 4.3 问答
+### 4.3 Question Answering
 
-- **US-Q1**：作为学生，我希望提问后得到带 **引用片段与文档名** 的回答，以便核对原文。
-- **US-Q2**：作为学生，当问题与任何已发布课程无关时，我希望系统明确拒答，而不是编造内容。
-- **US-Q3**：作为学生，当材料不足以回答时，我希望看到「未找到依据」类提示，而非猜测。
+- **US-Q1**: As a student, I want answers with **cited excerpts and document names** so that I can verify them against the source text.
+- **US-Q2**: As a student, when a question is unrelated to any published course, I want the system to explicitly refuse rather than fabricate content.
+- **US-Q3**: As a student, when the materials are insufficient to answer, I want to see a message such as "No supporting evidence found" instead of a guess.
 
-### 4.4 治理与运维
+### 4.4 Governance and Operations
 
-- **US-O1**：作为系统管理员，我希望查看拒答与越界尝试的聚合统计，以便调整策略与培训材料。
-- **US-O2**：作为课程管理员，我希望重新上传文档后索引可更新，以便学期中修正错误材料。
+- **US-O1**: As a Sys Admin, I want to view aggregate statistics for refusals and out-of-scope attempts so that I can adjust policies and training materials.
+- **US-O2**: As a Course Admin, I want the index to update after documents are re-uploaded so that incorrect materials can be corrected during the semester.
 
 ---
 
-## 5. 功能需求
+## 5. Functional Requirements
 
-### 5.1 认证与会话
+### 5.1 Authentication and Sessions
 
-| ID | 需求 | 优先级 |
+| ID | Requirement | Priority |
 |----|------|--------|
-| FR-AUTH-01 | 仅允许配置后缀的学校邮箱请求魔法链接 | P0 |
-| FR-AUTH-02 | 魔法链接单次有效、默认 15 分钟过期 | P0 |
-| FR-AUTH-03 | 登录后会话 Cookie / Token，服务端校验 | P0 |
-| FR-AUTH-04 | 认证接口预留 OIDC/SSO 适配层（MVP 可 stub） | P2 |
+| FR-AUTH-01 | Allow magic-link requests only from school email addresses with configured domains | P0 |
+| FR-AUTH-02 | Magic links are single-use and expire after 15 minutes by default | P0 |
+| FR-AUTH-03 | Issue a session Cookie / Token after login and validate it server-side | P0 |
+| FR-AUTH-04 | Reserve an OIDC/SSO adapter layer in the authentication interface (may be stubbed in the MVP) | P2 |
 
-### 5.2 课程与文档管理
+### 5.2 Course and Document Management
 
-| ID | 需求 | 优先级 |
+| ID | Requirement | Priority |
 |----|------|--------|
-| FR-COURSE-01 | 课程 CRUD：名称、代码、学期、描述、发布状态 | P0 |
-| FR-COURSE-02 | 文档上传：PDF、Markdown、纯文本；单文件大小与类型校验 | P0 |
-| FR-COURSE-03 | 异步或同步流水线：解析 → 切片 → 向量化 → 写入 pgvector | P0 |
-| FR-COURSE-04 | 发布门禁：至少一份已向量化文档方可发布 | P0 |
-| FR-COURSE-05 | 已认证学生可列出全部 **已发布** 课程 | P0 |
+| FR-COURSE-01 | Course CRUD: name, code, semester, description, and publication status | P0 |
+| FR-COURSE-02 | Document upload: PDF, Markdown, and plain text; validate individual file size and type | P0 |
+| FR-COURSE-03 | Asynchronous or synchronous pipeline: parse → chunk → vectorize → write to pgvector | P0 |
+| FR-COURSE-04 | Publication gate: at least one vectorized document is required before publishing | P0 |
+| FR-COURSE-05 | Authenticated students can list all **published** courses | P0 |
 
-### 5.3 检索与生成
+### 5.3 Retrieval and Generation
 
-| ID | 需求 | 优先级 |
+| ID | Requirement | Priority |
 |----|------|--------|
-| FR-RAG-01 | 向量检索 + 可选关键词混合检索（MVP 至少向量） | P0 |
-| FR-RAG-02 | 检索范围限定在用户选定课程或「全站已发布课程」集合内 | P0 |
-| FR-RAG-03 | 调用外部模型 API 生成回答；Prompt 强制引用证据 | P0 |
-| FR-RAG-04 | 响应返回：`status`、`answer`、`citations[]`、`reason` 与 `layer` | P0 |
-| FR-RAG-05 | 全局限流：按用户/IP 限制提问频率 | P1 |
+| FR-RAG-01 | Vector retrieval + optional hybrid keyword retrieval (the MVP must support at least vector retrieval) | P0 |
+| FR-RAG-02 | Restrict retrieval scope to the course selected by the user or the set of "all published courses" | P0 |
+| FR-RAG-03 | Call an external model API to generate answers; the Prompt must enforce evidence citation | P0 |
+| FR-RAG-04 | Response returns: `status`, `answer`, `citations[]`, `reason`, and `layer` | P0 |
+| FR-RAG-05 | Global rate limiting: limit question frequency by user/IP | P1 |
 
-### 5.4 四层限域（输入、主题、证据、输出）
+### 5.4 Four-Layer Scope Control (Input, Topic, Evidence, Output)
 
-| 层级 | 说明 | MVP 行为 |
+| Layer | Description | MVP Behavior |
 |------|------|----------|
-| **L1 输入** | 拦截明显越界、滥用、注入式 prompt | 规则 + 轻量分类；高风险直接拒答 |
-| **L2 主题** | 判断问题是否落在已发布课程主题空间 | 课程元数据 + 检索置信度阈值 |
-| **L3 证据** | 要求 Top-K 片段分数与覆盖率达标 | 未达标则拒答或仅返回摘录 |
-| **L4 输出** | 生成后校验：是否超出证据、是否含禁语 | 不通过则替换为拒答模板 |
+| **L1 Input** | Intercept clearly out-of-scope, abusive, or prompt-injection input | Rules + lightweight classification; directly refuse high-risk input |
+| **L2 Topic** | Determine whether the question falls within the topic space of published courses | Course metadata + retrieval confidence threshold |
+| **L3 Evidence** | Require Top-K chunk scores and coverage to meet thresholds | Refuse or return excerpts only when thresholds are not met |
+| **L4 Output** | Post-generation validation: determine whether content exceeds the evidence or contains prohibited language | Replace failed output with a refusal template |
 
-### 5.5 审计与可观测
+### 5.5 Auditing and Observability
 
-| ID | 需求 | 优先级 |
+| ID | Requirement | Priority |
 |----|------|--------|
-| FR-AUDIT-01 | 记录：用户、课程、问题摘要、拒答原因、引用 ID、模型版本 | P0 |
-| FR-AUDIT-02 | 健康检查端点 `/health`；依赖 PostgreSQL 就绪探针 | P0 |
-| FR-AUDIT-03 | 结构化日志（JSON），便于院系日志采集 | P1 |
+| FR-AUDIT-01 | Record: user, course, question summary, refusal reason, citation ID, and model version | P0 |
+| FR-AUDIT-02 | Health-check endpoint `/health`; PostgreSQL dependency readiness probe | P0 |
+| FR-AUDIT-03 | Structured logs (JSON) for departmental log collection | P1 |
 
-### 5.6 服务端轻量页面
+### 5.6 Lightweight Server-Rendered Pages
 
-| ID | 需求 | 优先级 |
+| ID | Requirement | Priority |
 |----|------|--------|
-| FR-UI-01 | FastAPI 模板页：登录、课程列表、问答界面 | P0 |
-| FR-UI-02 | 管理页：上传文档、发布课程（最小可用） | P1 |
+| FR-UI-01 | FastAPI template pages: login, course list, and Q&A interface | P0 |
+| FR-UI-02 | Admin pages: upload documents and publish courses (minimum viable functionality) | P1 |
 
 ---
 
-## 6. 拒答策略
+## 6. Refusal Strategy
 
-设计原则：**宁可少答，不可错答或越界答**。系统 **不承诺** 100% 限域；以下策略用于降低概率并保留审计证据。
+Design principle: **It is better to answer less than to answer incorrectly or out of scope**. The system **does not guarantee** 100% scope containment; the following strategies reduce the likelihood of failures while retaining audit evidence.
 
-### 6.1 必须拒答（Hard Refusal）
+### 6.1 Hard Refusal
 
-| 场景 | 用户可见提示（示例） |
+| Scenario | User-Facing Message (Example) |
 |------|----------------------|
-| 未认证 | 「请先使用学校邮箱登录。」 |
-| 输入层检测到 prompt 注入、违法、仇恨、自伤等 | 「该问题无法在此系统中处理。」 |
-| 与全部已发布课程主题无关（L2 未通过） | 「该问题不在已发布课程范围内。」 |
-| 检索最高分低于阈值或无片段（L3 未通过） | 「未在课程材料中找到足够依据，无法回答。」 |
-| 输出校验发现无引用支撑或越界陈述（L4 未通过） | 「无法基于课程材料生成可靠回答。」 |
-| 外部模型 API 不可用 | 「服务暂时不可用，请稍后重试。」 |
+| Unauthenticated | "Please log in with your school email address first." |
+| The input layer detects prompt injection, illegal content, hate, self-harm, etc. | "This question cannot be handled by this system." |
+| Unrelated to the topics of all published courses (L2 failed) | "This question is outside the scope of published courses." |
+| The highest retrieval score is below the threshold or no chunks are found (L3 failed) | "Insufficient supporting evidence was found in the course materials, so this question cannot be answered." |
+| Output validation detects unsupported or out-of-scope statements (L4 failed) | "A reliable answer cannot be generated from the course materials." |
+| External model API unavailable | "The service is temporarily unavailable. Please try again later." |
 
-### 6.2 软拒答 / 降级
+### 6.2 Soft Refusal / Degradation
 
-| 场景 | 行为 |
+| Scenario | Behavior |
 |------|------|
-| 证据部分相关但不足以完整回答 | 返回相关摘录 + 说明「材料未完整覆盖该问题」 |
-| 问题过于宽泛 | 引导用户指定课程或更具体子问题 |
+| Evidence is partially relevant but insufficient for a complete answer | Return relevant excerpts + state that "the materials do not fully cover this question" |
+| The question is too broad | Ask the user to specify a course or a more specific sub-question |
 
-### 6.3 拒答元数据
+### 6.3 Refusal Metadata
 
-每次拒答须写入：`layer`（L1–L4）、`reason_code`、可选 `matched_course_ids`、检索分数摘要，供管理员复盘。
+Each refusal must record: `layer` (L1–L4), `reason_code`, optional `matched_course_ids`, and a retrieval-score summary for administrator review.
 
 ---
 
-## 7. 数据与隐私
+## 7. Data and Privacy
 
-### 7.1 数据分类
+### 7.1 Data Classification
 
-| 类型 | 示例 | 存储 | 保留建议 |
+| Type | Example | Storage | Recommended Retention |
 |------|------|------|----------|
-| 账户 | 学校邮箱、角色 | PostgreSQL | 在校期间 + 1 年 |
-| 课程内容 | 上传文件、切片、向量 | PostgreSQL + 对象存储（可选本地卷） | 随课程生命周期 |
-| 交互 | 问题、回答、引用、拒答记录 | PostgreSQL | 默认 180 天（可配置） |
-| 日志 | 访问、错误、限流 | 本地日志卷 | 90 天 |
+| Account | School email address, role | PostgreSQL | Enrollment period + 1 year |
+| Course Content | Uploaded files, chunks, vectors | PostgreSQL + object storage (optional local volume) | For the course lifecycle |
+| Interaction | Questions, answers, citations, refusal records | PostgreSQL | 180 days by default (configurable) |
+| Logs | Access, errors, rate limiting | Local log volume | 90 days |
 
-### 7.2 隐私原则
+### 7.2 Privacy Principles
 
-1. **最小采集**：不收集与问答无关的个人信息。
-2. **校内存储**：MVP 默认单机部署，数据不出院系可控主机（外部模型 API 仍会发送必要上下文，需在院系协议中披露）。
-3. **学生可见性**：MVP 阶段学生仅查看自己的会话（若启用历史）；管理员可见聚合统计，不默认查看全文 unless 合规审批。
-4. **删除与导出**：正式版支持按用户/课程删除与导出；MVP 提供 SQL 级操作说明。
+1. **Data minimization**: Do not collect personal information unrelated to Q&A.
+2. **Institution-controlled storage**: The MVP is deployed on a single host by default, and data remains on a department-controlled machine (the external model API still receives necessary context, which must be disclosed in departmental agreements).
+3. **Student visibility**: During the MVP phase, students can view only their own conversations (if history is enabled); administrators can view aggregate statistics and do not view full text by default unless compliance approval is granted.
+4. **Deletion and export**: The production version supports deletion and export by user/course; the MVP provides SQL-level operating instructions.
 
-### 7.3 外部模型 API
+### 7.3 External Model API
 
-- 发送至第三方的内容应 **裁剪为检索片段 + 必要上下文**，避免整库上传。
-- 配置项：`LLM_API_BASE`、`LLM_API_KEY`、模型名、最大 token。
-- 院系须与供应商签署 DPA 或使用已批准的教育合规 endpoint。
+- Content sent to third parties must be **trimmed to retrieved chunks + necessary context** to avoid uploading the entire corpus.
+- Configuration items: `LLM_API_BASE`, `LLM_API_KEY`, model name, and maximum token count.
+- The department must sign a DPA with the provider or use an approved education-compliant endpoint.
 
 ---
 
-## 8. 安全
+## 8. Security
 
-| 领域 | MVP 要求 |
+| Area | MVP Requirement |
 |------|----------|
-| 传输 | HTTPS 终止于反向代理（生产）；本地开发可用 HTTP |
-| 认证 | 魔法链接 HMAC 签名；会话 HttpOnly Cookie |
-| 授权 | 基于角色的端点保护；管理操作需 Course Admin / Sys Admin |
-| 输入 | 文件类型白名单、大小限制、路径遍历防护 |
-| 注入 | 参数化 SQL；Prompt 模板固定结构；输出层校验 |
-| 密钥 | 环境变量注入，禁止写入镜像或仓库 |
-| 限流 | 全站与用户级速率限制，防滥用与 API 成本失控 |
-| 依赖 | 定期升级 Python 依赖；CI 运行 `pytest` 与 lint |
+| Transport | HTTPS terminates at the reverse proxy (production); HTTP may be used for local development |
+| Authentication | HMAC-signed magic links; session HttpOnly Cookie |
+| Authorization | Role-based endpoint protection; administrative operations require Course Admin / Sys Admin |
+| Input | File-type allowlist, size limits, and path traversal protection |
+| Injection | Parameterized SQL; fixed Prompt template structure; output-layer validation |
+| Secrets | Inject through environment variables; never write to images or repositories |
+| Rate Limiting | System-wide and per-user rate limits to prevent abuse and uncontrolled API costs |
+| Dependencies | Regularly upgrade Python dependencies; CI runs `pytest` and lint |
 
 ---
 
-## 9. 非功能指标
+## 9. Non-Functional Metrics
 
-| 指标 | MVP 目标 | 说明 |
+| Metric | MVP Target | Notes |
 |------|----------|------|
-| 峰值并发用户 | 10–50 | 单机 Compose，uvicorn workers 可配置 |
-| 注册学生规模 | 200–2000 | 索引规模随文档量线性增长 |
-| 问答 P95 延迟 | ≤ 8 s | 含检索 + 外部 API；视模型而定 |
-| 检索 P95 | ≤ 500 ms | pgvector，Top-K ≤ 10 |
-| 可用性 | 最佳努力 | 无 HA；计划内维护窗口可接受 |
-| 数据持久性 | 单库单卷 | 正式版需备份策略 |
-| 限域有效率 | 可测量、可迭代 | **不设 100% SLA**；以拒答率、人工抽检误答率为 KPI |
+| Peak Concurrent Users | 10–50 | Single-host Compose; configurable uvicorn workers |
+| Registered Student Base | 200–2,000 | Index size grows linearly with document volume |
+| Q&A P95 Latency | ≤ 8 s | Includes retrieval + external API; model-dependent |
+| Retrieval P95 | ≤ 500 ms | pgvector, Top-K ≤ 10 |
+| Availability | Best effort | No HA; planned maintenance windows are acceptable |
+| Data Durability | Single database, single volume | The production version requires a backup strategy |
+| Scope-Control Effectiveness | Measurable and iterative | **No 100% SLA**; refusal rate and manually sampled error rate are KPIs |
 
 ---
 
-## 10. 验收标准
+## 10. Acceptance Criteria
 
-### 10.1 功能验收
+### 10.1 Functional Acceptance
 
-- [ ] 学校邮箱魔法链接登录成功；非校域邮箱被拒绝。
-- [ ] 课程管理员可上传文档，发布后学生可见该课程。
-- [ ] 学生可对已发布课程提问，返回答案与至少一条引用（在有证据时）。
-- [ ] 无关问题、无证据问题触发 L2/L3 拒答，且 `reason_code` 可查询。
-- [ ] 输出层抽检：明显无证据回答应被 L4 拦截（测试用例覆盖）。
-- [ ] `/health` 在 DB 就绪时返回 200。
+- [ ] School email magic-link login succeeds; email addresses outside the school domain are rejected.
+- [ ] A Course Admin can upload documents, and students can see the course after it is published.
+- [ ] Students can ask questions about published courses and receive an answer with at least one citation when evidence exists.
+- [ ] Unrelated questions and questions without evidence trigger L2/L3 refusals, and `reason_code` can be queried.
+- [ ] Output-layer spot checks: clearly unsupported answers are intercepted by L4 (covered by test cases).
+- [ ] `/health` returns 200 when the DB is ready.
 
-### 10.2 非功能验收
+### 10.2 Non-Functional Acceptance
 
-- [ ] Docker Compose 一键启动：API + PostgreSQL（pgvector）。
-- [ ] 在 10 并发下（如 `locust`/`pytest` 并发脚本）无持续 5xx。
-- [ ] 审计表可查询最近一次问答的完整链路字段。
+- [ ] One-command Docker Compose startup: API + PostgreSQL (pgvector).
+- [ ] No sustained 5xx responses at 10 concurrent users (for example, with a `locust`/`pytest` concurrency script).
+- [ ] The audit table can retrieve all end-to-end fields for the most recent Q&A interaction.
 
-### 10.3 文档验收
+### 10.3 Documentation Acceptance
 
-- [ ] README 标明「可运行骨架，非完整生产系统」。
-- [ ] architecture.md 描述四层限域与部署拓扑。
-- [ ] 明确写出 **无法保证 100% 限域**。
+- [ ] The README states "runnable skeleton, not a complete production system."
+- [ ] architecture.md describes the four-layer scope control and deployment topology.
+- [ ] Explicitly state that **100% scope containment cannot be guaranteed**.
 
 ---
 
-## 11. 里程碑
+## 11. Milestones
 
-| 阶段 | 交付物 | 时间（建议） |
+| Phase | Deliverables | Suggested Schedule |
 |------|--------|--------------|
-| **M0 骨架** | 仓库结构、Compose、健康检查、空路由 | 第 1 周 |
-| **M1 认证** | 魔法链接、会话、角色模型 | 第 2 周 |
-| **M2  ingest** | 上传、切片、pgvector 索引 | 第 3–4 周 |
-| **M3 问答** | 检索、外部 API、引用与 L1–L4 拒答 | 第 5–6 周 |
-| **M4 管理 UI** | 最小 Web 页、发布流、审计查询 | 第 7 周 |
-| **M5 试点** | 1–2 门课程小范围试用、抽检与策略调参 | 第 8 周 |
+| **M0 Skeleton** | Repository structure, Compose, health check, placeholder routes | Week 1 |
+| **M1 Authentication** | Magic links, sessions, role model | Week 2 |
+| **M2 Ingest** | Upload, chunking, pgvector index | Weeks 3–4 |
+| **M3 Q&A** | Retrieval, external API, citations, and L1–L4 refusals | Weeks 5–6 |
+| **M4 Admin UI** | Minimal web pages, publication workflow, audit queries | Week 7 |
+| **M5 Pilot** | Limited pilot with 1–2 courses, spot checks, and policy tuning | Week 8 |
 
 ---
 
-## 12. 风险与缓解
+## 12. Risks and Mitigations
 
-| 风险 | 影响 | 概率 | 缓解 |
+| Risk | Impact | Likelihood | Mitigation |
 |------|------|------|------|
-| **限域不完整** | 误答、合规事件 | 中 | 四层拒答、人工抽检、快速下架课程；文档声明无 100% 保证 |
-| **外部 API 泄露上下文** | 隐私 | 中 | 最小片段策略、校内批准供应商、可选自建 proxy 脱敏 |
-| **幻觉** | 误导学生 | 中 | 强制引用、L4 校验、低温度生成、拒答优先 |
-| **峰值超过 50 并发** | 延迟、超时 | 低–中 | 限流、队列、水平扩展路径（见 architecture） |
-| **文档质量差/OCR 错误** | 检索噪声 | 中 | 上传规范、管理员预览、重新索引 |
-| **魔法链接被转发** | 未授权访问 | 低 | 短时效、单次使用、可选设备绑定（正式版） |
-| **单机故障** | 服务中断 | 中 | 备份卷、恢复 runbook；正式版 HA |
-| **成本失控（API）** | 预算超支 | 中 | 用户限流、每课程配额、缓存高频 FAQ |
+| **Incomplete scope containment** | Incorrect answers, compliance incidents | Medium | Four-layer refusal, manual spot checks, rapid course unpublishing; documentation states there is no 100% guarantee |
+| **External API context leakage** | Privacy | Medium | Minimal-chunk strategy, institution-approved providers, optional self-hosted proxy for redaction |
+| **Hallucination** | Misleading students | Medium | Mandatory citations, L4 validation, low-temperature generation, refusal-first policy |
+| **Peak concurrency above 50** | Latency, timeouts | Low–Medium | Rate limiting, queues, and a horizontal scaling path (see architecture) |
+| **Poor document quality/OCR errors** | Retrieval noise | Medium | Upload standards, administrator preview, re-indexing |
+| **Forwarded magic links** | Unauthorized access | Low | Short expiration, single use, optional device binding (production version) |
+| **Single-host failure** | Service outage | Medium | Volume backups and a recovery runbook; HA in the production version |
+| **Uncontrolled API costs** | Budget overrun | Medium | User rate limits, per-course quotas, and caching for frequently asked questions |
 
 ---
 
-## 附录：术语
+## Appendix: Glossary
 
-| 术语 | 含义 |
+| Term | Meaning |
 |------|------|
-| 限域 | 将问答约束在已发布课程材料与主题范围内 |
-| 保守拒答 | 置信不足或校验失败时拒绝生成，而非猜测 |
-| 已发布课程 | `status=published` 且至少一份已向量化文档的课程 |
+| Scope Containment | Restricting Q&A to the materials and topic scope of published courses |
+| Conservative Refusal | Refusing to generate when confidence is insufficient or validation fails, rather than guessing |
+| Published Course | A course with `status=published` and at least one vectorized document |

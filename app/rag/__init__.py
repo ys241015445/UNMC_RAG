@@ -1,1 +1,1 @@
-"""检索增强生成边界。"""
+"""Retrieval-augmented generation boundaries."""

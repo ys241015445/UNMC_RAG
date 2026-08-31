@@ -22,7 +22,7 @@
     event.preventDefault();
     showResultShell();
     submitBtn.disabled = true;
-    submitBtn.textContent = "检索中…";
+    submitBtn.textContent = "Searching…";
 
     const email = document.getElementById("school-email").value.trim();
     const question = document.getElementById("question").value.trim();
@@ -43,7 +43,7 @@
         statusBadge.className = "badge is-error";
         reasonText.textContent = payload.detail || `HTTP ${response.status}`;
         errorText.hidden = false;
-        errorText.textContent = "请求失败，请检查邮箱或稍后重试。";
+        errorText.textContent = "Request failed. Check the email or try again later.";
         return;
       }
 
@@ -84,10 +84,10 @@
       statusBadge.className = "badge is-error";
       reasonText.textContent = "network_error";
       errorText.hidden = false;
-      errorText.textContent = error instanceof Error ? error.message : "网络错误";
+      errorText.textContent = error instanceof Error ? error.message : "Network error";
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = "提问";
+      submitBtn.textContent = "Ask";
     }
   });
 })();

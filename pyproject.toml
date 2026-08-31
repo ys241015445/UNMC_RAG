@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "unmc-rag"
 version = "0.1.0"
-description = "低成本校内课程 RAG MVP"
+description = "Low-cost on-campus course RAG MVP"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

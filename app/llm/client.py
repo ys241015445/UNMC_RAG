@@ -1,4 +1,4 @@
-"""OpenAI 兼容聊天客户端（智谱 GLM 等）。"""
+"""OpenAI-compatible chat client (Zhipu GLM and similar)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import httpx
 
 
 class LLMError(RuntimeError):
-    """模型调用失败。"""
+    """Raised when a model call fails."""
 
 
 class OpenAICompatibleChatClient:

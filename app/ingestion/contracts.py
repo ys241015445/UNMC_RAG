@@ -13,6 +13,6 @@ class SourceDocument:
 
 
 class SourceAdapter(Protocol):
-    """文件上传、LMS 和白名单网页采集器遵循的统一接口。"""
+    """Shared interface for file upload, LMS, and allowlisted web collectors."""
 
     def fetch_changed(self, cursor: str | None) -> tuple[list[SourceDocument], str]: ...

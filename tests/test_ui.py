@@ -7,7 +7,7 @@ def test_chat_page_renders() -> None:
     response = TestClient(app).get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "提问" in response.text
+    assert "Ask" in response.text
     assert 'id="chat-form"' in response.text
     assert "school-email" in response.text
 

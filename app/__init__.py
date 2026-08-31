@@ -1,1 +1,1 @@
-"""UNMC 课程 RAG MVP。"""
+"""UNMC course RAG MVP."""

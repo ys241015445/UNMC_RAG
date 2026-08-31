@@ -15,19 +15,17 @@ class GuardrailResult:
 
 
 class GuardrailPolicy:
-    """低成本第一层防线；生产版再接入主题分类器和红队样本。"""
+    """Low-cost first-pass guardrails; production can add classifiers and red-team sets."""
 
     _injection_markers = (
-        "忽略之前",
-        "忽略以上",
-        "忽略先前",
-        "系统提示词",
-        "system prompt",
-        "reveal your instructions",
         "ignore previous",
         "disregard previous",
+        "system prompt",
+        "reveal your instructions",
+        "ignore all previous",
+        "ignore the above",
     )
-    _generic_terms = {"课程", "教学", "考试", "作业"}
+    _generic_terms = {"course", "teaching", "exam", "homework", "assignment"}
 
     def __init__(self, course_terms: set[str]) -> None:
         normalized_terms = {term.strip().casefold() for term in course_terms if term.strip()}

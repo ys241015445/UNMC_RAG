@@ -1,1 +1,1 @@
-"""课程问题限域策略。"""
+"""Course-question scoping policies."""

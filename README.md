@@ -1,109 +1,119 @@
-# UNMC RAG — 院系级校内课程问答 MVP
+# UNMC RAG — Department-level on-campus course Q&A MVP
 
-低成本、校内可部署的课程材料 RAG（检索增强生成）原型，面向 **200–2000 名学生**、**10–50 峰值并发** 的院系场景。
+A low-cost, campus-deployable course-materials RAG (retrieval-augmented generation)
+prototype for **200–2000 students** and **10–50 peak concurrent** users.
 
-## 当前状态说明
+## Current status
 
-> **本仓库是可运行骨架，而非完整生产系统。**
+> **This repository is a runnable skeleton, not a full production system.**
 
-当前已具备：
+Already included:
 
-- FastAPI 应用、`/health` 与 `/api/v1/chat` 接口
-- 学校邮箱域名校验接口边界
-- 提示注入/明显无关问题拦截、证据不足拒答和引用数据结构
-- PostgreSQL/pgvector Docker Compose 配置
-- 21 个认证、限域、问答服务与 API 自动化测试
-- 产品与技术文档：[docs/PRD.md](./docs/PRD.md)、[docs/architecture.md](./docs/architecture.md)
+- FastAPI app with `/health` and `/api/v1/chat`
+- School-email domain gate at the API boundary
+- Prompt-injection / off-topic refusal, insufficient-evidence refusal, and citation shapes
+- PostgreSQL/pgvector Docker Compose setup
+- Automated tests for auth, guardrails, chat service, API, UI, ingest, and LLM client
+- Product and architecture docs: [docs/PRD.md](./docs/PRD.md), [docs/architecture.md](./docs/architecture.md)
+- Optional Current Students scraper, local keyword corpus retrieval, Jinja chat UI
+- Optional Zhipu GLM (`glm-4.5-air`) grounded answer generation via OpenAI-compatible API
 
-尚未完备或需自行补齐的部分包括但不限于：
+Still incomplete or left for you to finish:
 
-- 完整的认证、ingest、四层限域与外部模型 API 集成
-- 生产级 HTTPS、备份、监控、SSO 对接
-- LMS / 网页抓取等扩展知识源
+- Full magic-link / SSO auth, upload ingest, four-layer guardrails end-to-end, and vector search
+- Production HTTPS, backups, monitoring, SSO integration
+- LMS / broader web connectors
 
-系统采用 **输入 → 主题 → 证据 → 输出** 四层限域与 **保守拒答** 策略，**无法保证 100% 限域**。试点与上线前请阅读 [PRD 拒答策略](./docs/PRD.md#6-拒答策略) 与 [架构限域声明](./docs/architecture.md)。
+The system uses an **input → topic → evidence → output** scoping strategy with
+**conservative refusal**. It **cannot guarantee 100% scoping**. Read the
+[PRD refusal strategy](./docs/PRD.md) and [architecture scoping statement](./docs/architecture.md)
+before a pilot.
 
-当前聊天接口使用 `X-School-Email` 请求头演示邮箱域名门禁。该请求头可被伪造，**仅适用于本机开发，不得作为真实认证或直接暴露到公网**；试点前必须完成魔法链接或学校 SSO。
-
----
-
-## 文档
-
-| 文档 | 说明 |
-|------|------|
-| [docs/PRD.md](./docs/PRD.md) | 产品需求：背景、目标、用户故事、功能、安全、验收与里程碑 |
-| [docs/architecture.md](./docs/architecture.md) | 系统架构：组件边界、数据流、部署拓扑、扩展路径与 ADR |
-
----
-
-## 技术栈（MVP）
-
-| 层级 | 选型 |
-|------|------|
-| 语言 / 框架 | Python 3.12、FastAPI |
-| 前端 | 服务端轻量模板页（Jinja2） |
-| 数据库 | PostgreSQL + pgvector |
-| 部署 | 单机 Docker Compose |
-| 模型 | 外部 Embedding / Chat API |
-| 知识来源 | **文件上传优先**；LMS / 网页后续 |
-
-认证：**学校邮箱魔法链接**（MVP）；正式版可替换为校内 SSO，详见架构文档。
+The chat API uses the `X-School-Email` header as a demo identity gate. That header
+can be forged and is **for local development only**—do not expose it as real auth on
+the public internet. Complete magic-link or campus SSO before any pilot.
 
 ---
 
-## 快速开始
+## Docs
 
-### 环境要求
+| Doc | Description |
+|-----|-------------|
+| [docs/PRD.md](./docs/PRD.md) | Product requirements: goals, stories, features, security, acceptance, milestones |
+| [docs/architecture.md](./docs/architecture.md) | Architecture: boundaries, data flows, deploy topology, scale path, ADRs |
+
+---
+
+## MVP stack
+
+| Layer | Choice |
+|-------|--------|
+| Language / framework | Python 3.12, FastAPI |
+| Frontend | Lightweight server templates (Jinja2) |
+| Database | PostgreSQL + pgvector |
+| Deploy | Single-host Docker Compose |
+| Models | External Embedding / Chat API (optional; Zhipu GLM supported) |
+| Knowledge sources | **File upload first**; LMS / web later; scraper prototype included |
+
+Auth: **school-email magic link** (MVP plan); production may swap in campus SSO.
+
+---
+
+## Quick start
+
+### Requirements
 
 - Python **3.12+**
 - Docker & Docker Compose v2
-- （可选）院系批准的外部模型 API Key
+- (Optional) department-approved model API key
 
-### 本地开发
+### Local development
 
 ```bash
-# 克隆并进入仓库
+# Clone and enter the repo
 git clone <repo-url> UNMC_RAG && cd UNMC_RAG
 
-# 创建虚拟环境并安装依赖
+# Create a venv and install deps
 python3.12 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -U pip
 pip install -e ".[dev]"
 
-# 环境变量（示例）
+# Environment (example)
 cp .env.example .env
-# 编辑 .env：数据库密码、模型密钥和学校邮箱域名等
+# Edit .env: DB password, model key, school email domain, etc.
 
-# 启动 PostgreSQL（pgvector）
+# Start PostgreSQL (pgvector)
 docker compose up -d db
 
-# 运行 API（开发模式，热重载）
+# Run the API (dev, reload)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-浏览器打开问答页：<http://localhost:8000/>  
-API 文档：<http://localhost:8000/docs>。
+Open the chat UI: <http://localhost:8000/>  
+API docs: <http://localhost:8000/docs>.
 
-原型调用示例：
+Prototype curl:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/chat \
   -H 'Content-Type: application/json' \
   -H 'X-School-Email: student@unmc.edu' \
-  -d '{"question":"高等数学中的导数是什么？"}'
+  -d '{"question":"What is a derivative in calculus?"}'
 ```
 
-尚未接入课程索引时，课程问题会安全返回 `insufficient_evidence`。
+Without an indexed corpus (or when evidence is weak), course questions safely return
+`insufficient_evidence`. With `LLM_API_KEY` set, grounded answers are generated by the
+configured chat model.
 
-### Docker Compose 一键启动
+### Docker Compose one-shot
 
-先准备 `.env`（至少设置数据库密码）与抓取语料：
+Prepare `.env` (at least `POSTGRES_PASSWORD`) and scraped corpus:
 
 ```bash
 cp .env.example .env
-# 编辑 .env：设置 POSTGRES_PASSWORD=...
-# 若尚无语料：
+# Edit .env: set POSTGRES_PASSWORD=...
+# If you have no corpus yet:
 pip install -e ".[scrape]"
 python scripts/scrape_current_students.py
 
@@ -112,10 +122,10 @@ docker compose ps
 curl -s http://localhost:8000/health
 ```
 
-浏览器打开：<http://localhost:8000/>  
-Compose 会把 `./data/scraped` 只读挂载进容器，并启用本地关键词检索。
+Open <http://localhost:8000/>.  
+Compose bind-mounts `./data/scraped` read-only and enables local keyword retrieval.
 
-### 测试
+### Tests
 
 ```bash
 pytest
@@ -123,9 +133,11 @@ pytest --cov=app --cov-report=term-missing
 ruff check app tests
 ```
 
-### 抓取 Current Students 公开页（独立脚本）
+### Scrape Current Students public pages (standalone)
 
-不接入聊天 API。仅抓取 `www.nottingham.edu.my/CurrentStudents/` 前缀下的 HTML 正文；PDF 等附件只记链接。
+Does not wire into the chat API by itself. Crawls HTML under
+`www.nottingham.edu.my/CurrentStudents/`; PDF and other attachments are recorded as
+links only.
 
 ```bash
 pip install -e ".[scrape]"
@@ -135,23 +147,25 @@ python scripts/scrape_current_students.py \
   --delay 0.75
 ```
 
-产物：`documents.jsonl`、`pages/*.md`、`index.json`、`attachments.jsonl`、`run_meta.json`（目录默认被 gitignore）。
+Outputs: `documents.jsonl`, `pages/*.md`, `index.json`, `attachments.jsonl`,
+`run_meta.json` (directory is gitignored by default).
 
-### 将抓取语料接入问答原型
+### Connect scraped corpus to the Q&A prototype
 
-当前阶段使用**本地关键词检索**（尚无 embedding / pgvector）。配置 `.env`：
+This stage uses **local keyword retrieval** (no embeddings / pgvector yet). Configure `.env`:
 
 ```bash
 cp .env.example .env
-# 确认：
+# Confirm:
 # UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl
 # UNMC_RAG_MINIMUM_RETRIEVAL_SCORE=0.3
-# UNMC_RAG_COURSE_TERMS=...含 graduation,shuttle 等主题词...
+# UNMC_RAG_COURSE_TERMS=...includes graduation,shuttle,etc...
+# LLM_API_KEY=... LLM_MODEL=glm-4.5-air (optional grounded generation)
 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-示例：
+Example:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/chat \
@@ -160,50 +174,55 @@ curl -X POST http://localhost:8000/api/v1/chat \
   -d '{"question":"When is the next graduation ceremony?"}'
 ```
 
-未设置 `UNMC_RAG_CORPUS_PATH` 或文件不存在时，行为与原先一致（证据不足拒答）。
+If `UNMC_RAG_CORPUS_PATH` is unset or the file is missing, behavior matches the empty
+retriever (insufficient evidence).
 
-### 常用环境变量
+### Common environment variables
 
-| 变量 | 说明 |
-|------|------|
-| `DATABASE_URL` | 下一阶段数据库接线预留；当前 M0 API 尚未读取 |
-| `LLM_API_BASE` | 外部模型 API 基址（智谱默认 `https://open.bigmodel.cn/api/paas/v4/`） |
-| `LLM_API_KEY` | API 密钥（写入本地 `.env`，勿提交 Git） |
-| `LLM_MODEL` | 聊天模型名，例如 `glm-4.5-air` |
-| `UNMC_RAG_SCHOOL_EMAIL_DOMAIN` | 允许的学校邮箱域 |
-| `UNMC_RAG_COURSE_TERMS` | 原型主题门禁使用的课程关键词 |
-| `UNMC_RAG_MINIMUM_RETRIEVAL_SCORE` | 最低证据分数 |
-| `UNMC_RAG_CORPUS_PATH` | 本地 `documents.jsonl` 路径；启用关键词检索 |
-| `UNMC_RAG_CHUNK_SIZE` / `CHUNK_OVERLAP` | 切片大小与重叠 |
-| `UNMC_RAG_RETRIEVAL_TOP_K` | 返回的最大切片数 |
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Reserved for DB wiring; not read by the current API yet |
+| `LLM_API_BASE` | External model API base (Zhipu default `https://open.bigmodel.cn/api/paas/v4/`) |
+| `LLM_API_KEY` | API key (local `.env` only; never commit) |
+| `LLM_MODEL` | Chat model name, e.g. `glm-4.5-air` |
+| `UNMC_RAG_SCHOOL_EMAIL_DOMAIN` | Allowed school email domain |
+| `UNMC_RAG_COURSE_TERMS` | Topic-gate keywords for the prototype |
+| `UNMC_RAG_MINIMUM_RETRIEVAL_SCORE` | Minimum evidence score |
+| `UNMC_RAG_CORPUS_PATH` | Path to local `documents.jsonl` for keyword retrieval |
+| `UNMC_RAG_CHUNK_SIZE` / `CHUNK_OVERLAP` | Chunk size and overlap |
+| `UNMC_RAG_RETRIEVAL_TOP_K` | Max chunks returned |
 
 ---
 
-## 项目结构（目标）
+## Target layout
 
 ```
 app/api/          # HTTP API
-app/auth/         # 邮箱策略与身份提供方接口
-app/guardrails/   # 输入与主题限域
-app/ingestion/    # 文件、LMS、网页采集接口
-app/rag/          # 检索与问答编排
+app/auth/         # Email policy and identity-provider interfaces
+app/guardrails/   # Input and topic scoping
+app/ingestion/    # File / LMS / web ingest interfaces
+app/rag/          # Retrieval and chat orchestration
+app/llm/          # External chat model client
+app/web/          # Jinja UI routes
 tests/            # pytest
-docs/             # PRD、架构
-deploy/postgres/  # pgvector 初始化
+docs/             # PRD, architecture
+deploy/postgres/  # pgvector init
 compose.yaml
 ```
 
-完整说明见 [docs/architecture.md](./docs/architecture.md)。
+See [docs/architecture.md](./docs/architecture.md) for the full picture.
 
 ---
 
-## 许可与合规
+## License and compliance
 
-部署前请确认：外部模型 API 的数据处理协议、校内个人信息保护要求，以及课程材料的版权与发布范围。本 MVP 文档不构成法律意见。
+Before deploying, confirm the external model API data-processing agreement, campus
+personal-data rules, and course-material copyright / distribution scope. This MVP
+documentation is not legal advice.
 
 ---
 
-## 相关链接
+## Related links
 
-- 产品需求：[docs/PRD.md](./docs/PRD.md)
-- 架构设计：[docs/architecture.md](./docs/architecture.md)
+- Product requirements: [docs/PRD.md](./docs/PRD.md)
+- Architecture: [docs/architecture.md](./docs/architecture.md)

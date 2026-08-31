@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,16 +16,17 @@
   <div class="page">
     <header class="hero">
       <p class="brand">{{ app_name }}</p>
-      <h1>基于校内公开材料的问答</h1>
+      <h1>Q&amp;A grounded in campus public materials</h1>
       <p class="lede">
-        仅在检索到课程/学生服务材料证据时作答；证据不足会拒答。
-        原型使用学校邮箱标识，勿直接暴露公网。
+        Answers only when course / student-service evidence is retrieved; otherwise the
+        system refuses. This prototype uses a school-email header and must not be exposed
+        on the public internet as real authentication.
       </p>
     </header>
 
     <form id="chat-form" class="ask-form" autocomplete="on">
       <label>
-        学校邮箱
+        School email
         <input
           id="school-email"
           name="school_email"
@@ -36,17 +37,17 @@
         />
       </label>
       <label>
-        问题
+        Question
         <textarea
           id="question"
           name="question"
           rows="4"
           required
           maxlength="2000"
-          placeholder="例如：When is the next graduation ceremony?"
+          placeholder="Example: When is the next graduation ceremony?"
         ></textarea>
       </label>
-      <button type="submit" id="submit-btn">提问</button>
+      <button type="submit" id="submit-btn">Ask</button>
     </form>
 
     <section id="result" class="result" hidden aria-live="polite">
@@ -55,11 +56,11 @@
         <span id="reason-text" class="reason"></span>
       </div>
       <div id="answer-block" class="answer" hidden>
-        <h2>回答</h2>
+        <h2>Answer</h2>
         <p id="answer-text"></p>
       </div>
       <div id="citations-block" class="citations" hidden>
-        <h2>引用</h2>
+        <h2>Citations</h2>
         <ul id="citations-list"></ul>
       </div>
       <p id="error-text" class="error" hidden></p>

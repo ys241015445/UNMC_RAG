@@ -2,9 +2,9 @@ services:
   app:
     build: .
     environment:
-      UNMC_RAG_APP_NAME: ${UNMC_RAG_APP_NAME:-UNMC 课程助手}
+      UNMC_RAG_APP_NAME: ${UNMC_RAG_APP_NAME:-UNMC Course Assistant}
       UNMC_RAG_SCHOOL_EMAIL_DOMAIN: ${UNMC_RAG_SCHOOL_EMAIL_DOMAIN:-unmc.edu}
-      UNMC_RAG_COURSE_TERMS: ${UNMC_RAG_COURSE_TERMS:-高等数学,微积分,线性代数,graduation,shuttle,counselling,timetable,appeals,examination,visa,wellbeing,amenities}
+      UNMC_RAG_COURSE_TERMS: ${UNMC_RAG_COURSE_TERMS:-calculus,linear algebra,graduation,shuttle,counselling,timetable,appeals,examination,visa,wellbeing,amenities}
       UNMC_RAG_MINIMUM_RETRIEVAL_SCORE: ${UNMC_RAG_MINIMUM_RETRIEVAL_SCORE:-0.3}
       UNMC_RAG_CORPUS_PATH: ${UNMC_RAG_CORPUS_PATH:-data/scraped/current_students/documents.jsonl}
       UNMC_RAG_CHUNK_SIZE: ${UNMC_RAG_CHUNK_SIZE:-500}
@@ -15,7 +15,7 @@ services:
       LLM_MODEL: ${LLM_MODEL:-glm-4.5-air}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
     volumes:
-      # 挂载本地抓取语料；宿主机需先跑 scraper 或准备 documents.jsonl
+      # Mount local scraped corpus; host must scrape first or provide documents.jsonl
       - ./data/scraped:/app/data/scraped:ro
     ports:
       - "8000:8000"
@@ -29,7 +29,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-unmc_rag}
       POSTGRES_USER: ${POSTGRES_USER:-unmc_rag}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro

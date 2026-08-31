@@ -15,7 +15,7 @@ class StubRetriever:
 
 
 class StubGenerator:
-    def __init__(self, text: str = "基于证据的回答", *, fail: bool = False) -> None:
+    def __init__(self, text: str = "Evidence-based answer", *, fail: bool = False) -> None:
         self.text = text
         self.fail = fail
         self.called = False
@@ -30,11 +30,11 @@ class StubGenerator:
 def test_refuses_off_topic_question_without_retrieval() -> None:
     retriever = StubRetriever([])
     service = ChatService(
-        guardrails=GuardrailPolicy(course_terms={"高等数学"}),
+        guardrails=GuardrailPolicy(course_terms={"calculus"}),
         retriever=retriever,
     )
 
-    result = service.answer("给我推荐一部电影")
+    result = service.answer("Recommend a movie for me")
 
     assert result.status == "refused"
     assert result.reason == "off_topic"
@@ -44,11 +44,11 @@ def test_refuses_off_topic_question_without_retrieval() -> None:
 def test_refuses_when_course_evidence_is_insufficient() -> None:
     retriever = StubRetriever([])
     service = ChatService(
-        guardrails=GuardrailPolicy(course_terms={"高等数学"}),
+        guardrails=GuardrailPolicy(course_terms={"calculus"}),
         retriever=retriever,
     )
 
-    result = service.answer("高等数学考试的具体日期是什么？")
+    result = service.answer("What is the exact date of the calculus exam?")
 
     assert result.status == "refused"
     assert result.reason == "insufficient_evidence"
@@ -58,23 +58,23 @@ def test_returns_grounded_prototype_answer_with_citation() -> None:
     retriever = StubRetriever(
         [
             RetrievedChunk(
-                text="导数描述函数在某一点的瞬时变化率。",
+                text="A derivative describes the instantaneous rate of change of a function.",
                 source_id="math-01",
-                title="高等数学第一章",
-                location="第 12 页",
+                title="Calculus Chapter 1",
+                location="page 12",
                 score=0.91,
             )
         ]
     )
     service = ChatService(
-        guardrails=GuardrailPolicy(course_terms={"高等数学", "导数"}),
+        guardrails=GuardrailPolicy(course_terms={"calculus", "derivative"}),
         retriever=retriever,
     )
 
-    result = service.answer("高等数学中的导数表示什么？")
+    result = service.answer("What does a derivative mean in calculus?")
 
     assert result.status == "answered"
-    assert "瞬时变化率" in result.answer
+    assert "instantaneous rate of change" in result.answer
     assert result.citations[0].source_id == "math-01"
 
 

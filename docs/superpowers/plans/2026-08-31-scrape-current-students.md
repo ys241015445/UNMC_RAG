@@ -2,51 +2,51 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 独立脚本抓取 `/CurrentStudents/` 白名单 HTML 页，输出 JSONL + Markdown + 索引，附件只记链接。
+**Goal:** Use a standalone script to scrape allowlisted HTML pages under `/CurrentStudents/`, outputting JSONL, Markdown, and an index while recording attachment links only.
 
-**Architecture:** CLI 脚本 BFS 抓取；纯函数负责 URL 规范化、正文抽取与写出；pytest 用本地 HTML fixture 测抽取逻辑，不依赖外网。
+**Architecture:** A CLI script performs BFS scraping; pure functions handle URL normalization, body extraction, and output; pytest tests extraction logic with a local HTML fixture and does not depend on external network access.
 
-**Tech Stack:** Python 3.12、httpx、beautifulsoup4、lxml、pytest
+**Tech Stack:** Python 3.12, httpx, beautifulsoup4, lxml, pytest
 
 ## Global Constraints
 
-- 仅 `www.nottingham.edu.my` + 路径前缀 `/CurrentStudents/`
-- 不下载附件；不接入 FastAPI/DB
-- `data/scraped/` 必须 gitignore
-- 抓取依赖放在 optional `[scrape]`，dev 可不强制
+- Restrict scraping to `www.nottingham.edu.my` and the `/CurrentStudents/` path prefix
+- Do not download attachments or integrate with FastAPI/DB
+- `data/scraped/` must be ignored by Git
+- Put scraping dependencies in the optional `[scrape]` group; they need not be required for development
 
 ---
 
-### Task 1: 脚手架与依赖
+### Task 1: Scaffolding and Dependencies
 
 **Files:**
 - Modify: `pyproject.toml`
 - Modify: `.gitignore`
 - Create: `data/scraped/.gitkeep`
-- Create: `scripts/scrape_current_students.py`（骨架）
+- Create: `scripts/scrape_current_students.py` (skeleton)
 
-- [ ] 增加 `scrape` optional deps
-- [ ] ignore `data/scraped/*` 并保留 `.gitkeep`
+- [ ] Add optional `scrape` dependencies
+- [ ] Ignore `data/scraped/*` while retaining `.gitkeep`
 - [ ] Commit
 
-### Task 2: URL / 抽取纯函数 + 测试
+### Task 2: Pure URL/Extraction Functions and Tests
 
 **Files:**
 - Create: `tests/fixtures/current_students_sample.html`
 - Create: `tests/test_scrape_current_students.py`
 - Modify: `scripts/scrape_current_students.py`
 
-- [ ] 写失败测试：normalize、in_scope、extract_page、attachment 分类
-- [ ] 实现使测试通过
+- [ ] Write failing tests for normalization, `in_scope`, `extract_page`, and attachment classification
+- [ ] Implement the functions to make the tests pass
 - [ ] Commit
 
-### Task 3: BFS 爬虫与写出
+### Task 3: BFS Scraper and Output
 
 **Files:**
 - Modify: `scripts/scrape_current_students.py`
-- Modify: `README.md`（简短用法）
+- Modify: `README.md` (brief usage instructions)
 
-- [ ] 实现 fetch + BFS + 写出 JSONL/MD/index/attachments/run_meta
-- [ ] CLI：`--max-pages`、`--delay`、`--out-dir`、`--seed`
-- [ ] 本地试跑（网络）
+- [ ] Implement fetching, BFS, and output to JSONL/MD/index/attachments/run_meta
+- [ ] CLI: `--max-pages`, `--delay`, `--out-dir`, and `--seed`
+- [ ] Run a local smoke test (network required)
 - [ ] Commit
