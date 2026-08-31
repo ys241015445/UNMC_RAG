@@ -125,6 +125,31 @@ python scripts/scrape_current_students.py \
 
 产物：`documents.jsonl`、`pages/*.md`、`index.json`、`attachments.jsonl`、`run_meta.json`（目录默认被 gitignore）。
 
+### 将抓取语料接入问答原型
+
+当前阶段使用**本地关键词检索**（尚无 embedding / pgvector）。配置 `.env`：
+
+```bash
+cp .env.example .env
+# 确认：
+# UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl
+# UNMC_RAG_MINIMUM_RETRIEVAL_SCORE=0.3
+# UNMC_RAG_COURSE_TERMS=...含 graduation,shuttle 等主题词...
+
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+示例：
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H 'Content-Type: application/json' \
+  -H 'X-School-Email: student@unmc.edu' \
+  -d '{"question":"When is the next graduation ceremony?"}'
+```
+
+未设置 `UNMC_RAG_CORPUS_PATH` 或文件不存在时，行为与原先一致（证据不足拒答）。
+
 ### 常用环境变量
 
 | 变量 | 说明 |
@@ -135,6 +160,9 @@ python scripts/scrape_current_students.py \
 | `UNMC_RAG_SCHOOL_EMAIL_DOMAIN` | 允许的学校邮箱域 |
 | `UNMC_RAG_COURSE_TERMS` | 原型主题门禁使用的课程关键词 |
 | `UNMC_RAG_MINIMUM_RETRIEVAL_SCORE` | 最低证据分数 |
+| `UNMC_RAG_CORPUS_PATH` | 本地 `documents.jsonl` 路径；启用关键词检索 |
+| `UNMC_RAG_CHUNK_SIZE` / `CHUNK_OVERLAP` | 切片大小与重叠 |
+| `UNMC_RAG_RETRIEVAL_TOP_K` | 返回的最大切片数 |
 
 ---
 
