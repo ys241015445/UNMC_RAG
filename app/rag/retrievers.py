@@ -12,6 +12,129 @@ from app.rag.contracts import RetrievedChunk
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+|[\u4e00-\u9fff]+")
 
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "am",
+        "i",
+        "me",
+        "my",
+        "we",
+        "our",
+        "you",
+        "your",
+        "he",
+        "she",
+        "it",
+        "they",
+        "them",
+        "their",
+        "this",
+        "that",
+        "these",
+        "those",
+        "and",
+        "or",
+        "but",
+        "if",
+        "then",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "from",
+        "with",
+        "as",
+        "by",
+        "about",
+        "into",
+        "over",
+        "after",
+        "before",
+        "when",
+        "where",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "how",
+        "do",
+        "does",
+        "did",
+        "can",
+        "could",
+        "should",
+        "would",
+        "will",
+        "just",
+        "please",
+        "tell",
+        "give",
+        "next",
+        "time",
+    }
+)
+
+# Lightweight campus synonym / typo expansion for keyword retrieval.
+_SYNONYMS: dict[str, set[str]] = {
+    "graduation": {"graduate", "graduates", "graduating", "graduand", "graduands", "ceremony"},
+    "graduate": {"graduation", "graduates", "graduating", "ceremony"},
+    "graduates": {"graduation", "graduate", "graduating"},
+    "graducation": {"graduation", "graduate", "ceremony"},
+    "ceremony": {"graduation", "graduate"},
+    "exam": {"examination", "exams", "examinations"},
+    "exams": {"examination", "exam", "examinations"},
+    "examination": {"exam", "exams", "examinations"},
+    "timetable": {"timetabling", "schedule", "scheduling"},
+    "timetabling": {"timetable", "schedule"},
+    "counselling": {"counseling", "counsellor", "counselor", "wellbeing"},
+    "counseling": {"counselling", "counsellor", "counselor", "wellbeing"},
+    "wellbeing": {"well-being", "counselling", "counseling"},
+    "shuttle": {"bus", "transport"},
+    "visa": {"immigration"},
+    "appeals": {"appeal"},
+    "appeal": {"appeals"},
+    "amenities": {"amenity", "food", "beverage"},
+}
+
+
+def stem_token(token: str) -> str:
+    """Very light English stemming for campus FAQ matching."""
+    stemmed = token
+    for suffix in (
+        "ation",
+        "tions",
+        "tion",
+        "ments",
+        "ment",
+        "ness",
+        "ings",
+        "ing",
+        "ies",
+        "ied",
+        "ers",
+        "er",
+        "ly",
+        "ed",
+        "es",
+        "s",
+    ):
+        if len(stemmed) > len(suffix) + 3 and stemmed.endswith(suffix):
+            stemmed = stemmed[: -len(suffix)]
+            break
+    return stemmed
+
 
 def tokenize(text: str) -> list[str]:
     tokens: list[str] = []
@@ -24,6 +147,21 @@ def tokenize(text: str) -> list[str]:
         else:
             tokens.append(folded)
     return tokens
+
+
+def search_terms(text: str) -> set[str]:
+    """Tokens used for retrieval: stopword-filtered, stemmed, synonym-expanded."""
+    terms: set[str] = set()
+    for token in tokenize(text):
+        if token in _STOPWORDS or len(token) <= 1:
+            continue
+        candidates = {token, stem_token(token)}
+        candidates |= _SYNONYMS.get(token, set())
+        for syn in list(candidates):
+            candidates |= _SYNONYMS.get(syn, set())
+            candidates.add(stem_token(syn))
+        terms |= {item for item in candidates if item and item not in _STOPWORDS}
+    return terms
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,13 +203,15 @@ class LocalKeywordRetriever:
                 location = document.url or f"chunk-{index}"
                 if len(pieces) > 1:
                     location = f"{location}#chunk-{index}"
+                # Index both body and title so title phrases like "Graduation Ceremony" count.
+                indexed_text = f"{document.title}\n{piece}"
                 indexed.append(
                     _IndexedChunk(
                         text=piece,
                         source_id=document.source_id,
                         title=document.title,
                         location=location,
-                        tokens=frozenset(tokenize(piece)),
+                        tokens=frozenset(search_terms(indexed_text)),
                     )
                 )
         return cls(indexed, top_k=top_k)
@@ -93,16 +233,16 @@ class LocalKeywordRetriever:
         )
 
     def search(self, question: str) -> list[RetrievedChunk]:
-        question_tokens = set(tokenize(question))
-        if not question_tokens or not self._chunks:
+        question_terms = search_terms(question)
+        if not question_terms or not self._chunks:
             return []
 
         scored: list[RetrievedChunk] = []
         for chunk in self._chunks:
-            overlap = question_tokens & chunk.tokens
+            overlap = question_terms & chunk.tokens
             if not overlap:
                 continue
-            score = len(overlap) / len(question_tokens)
+            score = len(overlap) / len(question_terms)
             scored.append(
                 RetrievedChunk(
                     text=chunk.text,

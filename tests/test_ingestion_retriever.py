@@ -4,7 +4,7 @@ from app.config import Settings
 from app.ingestion.chunking import chunk_text
 from app.ingestion.loaders import LoadedDocument, load_documents_jsonl
 from app.rag.factory import build_retriever
-from app.rag.retrievers import EmptyRetriever, LocalKeywordRetriever, tokenize
+from app.rag.retrievers import EmptyRetriever, LocalKeywordRetriever, search_terms, tokenize
 
 
 def test_chunk_text_respects_size_and_overlap() -> None:
@@ -36,6 +36,35 @@ def test_tokenize_english_and_cjk() -> None:
     assert "高" in chinese
     assert "学" in chinese
     assert "高等数学考试" in chinese
+
+
+def test_search_terms_expand_graduate_variants() -> None:
+    terms = search_terms("the next graduate time")
+    assert "graduation" in terms or "graduate" in terms
+    assert "the" not in terms
+    assert "next" not in terms
+    typo_terms = search_terms("when is next graducation time")
+    assert "graduation" in typo_terms
+
+
+def test_local_keyword_retriever_matches_graduate_to_graduation() -> None:
+    retriever = LocalKeywordRetriever.from_documents(
+        [
+            LoadedDocument(
+                source_id="grad-1",
+                title="Graduation Ceremony",
+                url="https://example.edu/grad",
+                text="The upcoming graduation is planned for 30 January 2027 - 31 January 2027.",
+            )
+        ],
+        chunk_size=300,
+        overlap=20,
+        top_k=3,
+    )
+    hits = retriever.search("the next graduate time")
+    assert hits
+    assert hits[0].source_id == "grad-1"
+    assert hits[0].score >= 0.3
 
 
 def test_local_keyword_retriever_from_memory_docs() -> None:

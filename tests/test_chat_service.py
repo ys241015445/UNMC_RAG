@@ -105,6 +105,41 @@ def test_uses_llm_generator_when_configured() -> None:
     assert "January 2027" in result.answer
 
 
+def test_uses_query_rewriter_for_retrieval() -> None:
+    class Rewriter:
+        def rewrite(self, question: str) -> str:
+            return "graduation ceremony date"
+
+    class AllowAllTopics:
+        def is_on_topic(self, question: str) -> bool:
+            return True
+
+    retriever = StubRetriever(
+        [
+            RetrievedChunk(
+                text="Graduation is planned for January 2027.",
+                source_id="grad-1",
+                title="Graduation",
+                location="https://example.edu/grad",
+                score=0.9,
+            )
+        ]
+    )
+    service = ChatService(
+        guardrails=GuardrailPolicy(
+            course_terms={"graduation"},
+            topic_classifier=AllowAllTopics(),
+        ),
+        retriever=retriever,
+        query_rewriter=Rewriter(),
+        minimum_score=0.3,
+    )
+    result = service.answer("the next graduate time?")
+    assert result.status == "answered"
+    assert retriever.called is True
+    assert "January 2027" in result.answer
+
+
 def test_generation_failure_is_refused() -> None:
     retriever = StubRetriever(
         [

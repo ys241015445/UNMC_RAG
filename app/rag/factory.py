@@ -6,6 +6,7 @@ from app.guardrails.topic_classifier import LLMTopicClassifier
 from app.llm.client import OpenAICompatibleChatClient
 from app.llm.generator import EvidenceAnswerGenerator
 from app.rag.contracts import Retriever
+from app.rag.query_rewrite import QueryRewriter
 from app.rag.retrievers import EmptyRetriever, LocalKeywordRetriever
 from app.rag.service import AnswerGenerator, ChatService
 
@@ -51,6 +52,18 @@ def build_generator(
     return EvidenceAnswerGenerator(llm_client)
 
 
+def build_query_rewriter(
+    llm_settings: LLMSettings | None = None,
+    *,
+    client: OpenAICompatibleChatClient | None = None,
+) -> QueryRewriter | None:
+    resolved = llm_settings or get_llm_settings()
+    llm_client = client if client is not None else _build_llm_client(resolved)
+    if llm_client is None:
+        return None
+    return QueryRewriter(llm_client)
+
+
 def build_guardrails(
     settings: Settings | None = None,
     llm_settings: LLMSettings | None = None,
@@ -84,4 +97,5 @@ def build_chat_service(
         retriever=build_retriever(resolved),
         minimum_score=resolved.minimum_retrieval_score,
         generator=build_generator(resolved_llm, client=client),
+        query_rewriter=build_query_rewriter(resolved_llm, client=client),
     )
