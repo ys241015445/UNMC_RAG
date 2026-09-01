@@ -22,3 +22,5 @@ def test_static_assets_available() -> None:
     assert "/api/v1/chat" in js.text
     assert "Outside my lane" in js.text
     assert "insufficient_evidence" in js.text
+    assert "link.textContent = title" in js.text
+    assert "item.append(` — ${citation.location}`)" not in js.text

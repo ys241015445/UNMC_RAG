@@ -1,7 +1,12 @@
 PYTHON ?= python3.12
 VENV ?= .venv
+TCR_REGISTRY ?= ccr.ccs.tencentyun.com
+TCR_NAMESPACE ?= your-namespace
+TCR_IMAGE ?= unmc-rag
+TCR_TAG ?= latest
+APP_IMAGE ?= $(TCR_REGISTRY)/$(TCR_NAMESPACE)/$(TCR_IMAGE):$(TCR_TAG)
 
-.PHONY: install test lint run docker-up docker-down
+.PHONY: install test lint run docker-up docker-down docker-build docker-push
 
 install:
 	$(PYTHON) -m venv $(VENV)
@@ -18,7 +23,13 @@ run:
 	$(VENV)/bin/uvicorn app.main:app --reload
 
 docker-up:
-	docker compose up --build
+	docker compose -f compose.yaml -f compose.local.yaml up --build
 
 docker-down:
 	docker compose down
+
+docker-build:
+	docker build -t $(APP_IMAGE) -t $(TCR_IMAGE):$(TCR_TAG) .
+
+docker-push: docker-build
+	docker push $(APP_IMAGE)

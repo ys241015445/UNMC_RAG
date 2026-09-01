@@ -46,6 +46,22 @@ class LLMSettings(BaseSettings):
         return bool(self.api_key.strip() and self.model.strip())
 
 
+class DatabaseSettings(BaseSettings):
+    """Loads DATABASE_URL (Supabase Postgres pooler or direct)."""
+
+    database_url: str = ""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+    )
+
+    @property
+    def enabled(self) -> bool:
+        url = self.database_url.strip().lower()
+        return url.startswith(("postgres://", "postgresql://", "postgresql+asyncpg://"))
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
@@ -54,3 +70,8 @@ def get_settings() -> Settings:
 @lru_cache
 def get_llm_settings() -> LLMSettings:
     return LLMSettings()
+
+
+@lru_cache
+def get_database_settings() -> DatabaseSettings:
+    return DatabaseSettings()

@@ -1,5 +1,6 @@
 .DS_Store
 .env
+.env.coolify
 .pytest_cache/
 .ruff_cache/
 .venv/
@@ -13,5 +14,8 @@ data/uploads/*
 !data/uploads/.gitkeep
 data/scraped/*
 !data/scraped/.gitkeep
+!data/scraped/current_students/
+data/scraped/current_students/*
+!data/scraped/current_students/documents.jsonl
 backups/*
 !backups/.gitkeep

@@ -9,10 +9,11 @@ prototype for **200–2000 students** and **10–50 peak concurrent** users.
 
 Already included:
 
-- FastAPI app with `/health` and `/api/v1/chat`
+- FastAPI app with `/health`, `/ready`, and `/api/v1/chat`
 - School-email domain gate at the API boundary
 - Prompt-injection / off-topic refusal, insufficient-evidence refusal, and citation shapes
-- PostgreSQL/pgvector Docker Compose setup
+- Coolify-ready all-in-one app image (nginx + FastAPI)
+- Supabase Postgres (pgvector enabled; private `rag` schema)
 - Automated tests for auth, guardrails, chat service, API, UI, ingest, and LLM client
 - Product and architecture docs: [docs/PRD.md](./docs/PRD.md), [docs/architecture.md](./docs/architecture.md)
 - Optional Current Students scraper, local keyword corpus retrieval, Jinja chat UI
@@ -50,8 +51,8 @@ the public internet. Complete magic-link or campus SSO before any pilot.
 |-------|--------|
 | Language / framework | Python 3.12, FastAPI |
 | Frontend | Lightweight server templates (Jinja2) |
-| Database | PostgreSQL + pgvector |
-| Deploy | Single-host Docker Compose |
+| Database | Supabase Postgres + pgvector |
+| Deploy | Docker Compose (local or Coolify) |
 | Models | External Embedding / Chat API (optional; Zhipu GLM supported) |
 | Knowledge sources | **File upload first**; LMS / web later; scraper prototype included |
 
@@ -65,6 +66,7 @@ Auth: **school-email magic link** (MVP plan); production may swap in campus SSO.
 
 - Python **3.12+**
 - Docker & Docker Compose v2
+- A Supabase project (this repo is linked to `UNMC_RAG`)
 - (Optional) department-approved model API key
 
 ### Local development
@@ -81,10 +83,8 @@ pip install -e ".[dev]"
 
 # Environment (example)
 cp .env.example .env
-# Edit .env: DB password, model key, school email domain, etc.
-
-# Start PostgreSQL (pgvector)
-docker compose up -d db
+# Edit .env: paste DATABASE_URL from Supabase → Connect → Session pooler,
+# plus LLM_API_KEY and school email domain.
 
 # Run the API (dev, reload)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -108,22 +108,69 @@ use the configured chat model (`glm-4.5-air` by default).
 
 ### Docker Compose one-shot
 
-Prepare `.env` (at least `POSTGRES_PASSWORD`) and scraped corpus:
+Prepare `.env` (set `DATABASE_URL` from Supabase Session pooler, and `LLM_API_KEY`):
 
 ```bash
 cp .env.example .env
-# Edit .env: set POSTGRES_PASSWORD=...
-# If you have no corpus yet:
-pip install -e ".[scrape]"
-python scripts/scrape_current_students.py
+# Edit .env: DATABASE_URL, LLM_API_KEY
 
-docker compose up -d --build
+docker compose -f compose.yaml -f compose.local.yaml up -d --build
 docker compose ps
-curl -s http://localhost:8000/health
+curl -s http://localhost:8080/health
+curl -s http://localhost:8080/ready
 ```
 
-Open <http://localhost:8000/>.  
-Compose bind-mounts `./data/scraped` read-only and enables local keyword retrieval.
+Open <http://localhost:8080/>.  
+One `app` container serves the UI on port 80 and proxies `/api`, `/health`, and `/ready` to FastAPI. Postgres is **Supabase**, not a Compose service.
+
+### Supabase
+
+Project: **UNMC_RAG** (`mqyqcoxzapzwkuxvctcv`, Tokyo / `ap-northeast-1`).
+
+1. Open [Connect](https://supabase.com/dashboard/project/mqyqcoxzapzwkuxvctcv).
+2. Copy **Session pooler** (port **5432**, IPv4 — required on Coolify/Tencent).
+3. Put it in `.env` as `DATABASE_URL`. You can keep the `postgresql+asyncpg://` prefix; the app normalizes it.
+4. Avoid `@ : / ? #` in the database password.
+
+Coolify/Tencent hosts are typically IPv4-only, so do **not** use the direct `db.*.supabase.co:5432` URI unless the host has IPv6. Transaction pooler (port 6543) is for serverless; this container uses session mode.
+
+Schema (already applied on the remote project):
+
+- extension `vector` in `extensions`
+- private schema `rag.document_chunks` and `rag.audit_events` (RLS on, no anon policies — backend uses the Postgres role)
+
+### Tencent Cloud TCR (single app image)
+
+Postgres is **not** in the app image; it stays on Supabase. Build and push:
+
+```bash
+# Personal TCR: ccr.ccs.tencentyun.com
+# Enterprise TCR: <instance>.tencentcloudcr.com  (or the region endpoint shown in the console)
+export TCR_REGISTRY=ccr.ccs.tencentyun.com
+export TCR_NAMESPACE=your-namespace   # 镜像仓库命名空间
+export TCR_IMAGE=unmc-rag
+export TCR_TAG=latest
+
+make docker-build TCR_NAMESPACE="$TCR_NAMESPACE"
+docker login "$TCR_REGISTRY"          # 用户名为腾讯云账号 ID，密码为「访问凭证」token
+make docker-push TCR_NAMESPACE="$TCR_NAMESPACE"
+```
+
+The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest`. Put that value in `APP_IMAGE`.
+
+### Coolify
+
+Coolify builds the single `app` image from this repo (nginx + FastAPI). Postgres stays on Supabase.
+
+1. Push Git, including `data/scraped/current_students/documents.jsonl`.
+2. New Resource → **Docker Compose**. Compose file: `compose.yaml` (not `compose.local.yaml`).
+3. Paste environment variables from local `.env.coolify` (or [`.env.coolify.example`](./.env.coolify.example)). Required:
+   - `DATABASE_URL` — Supabase Session pooler URI already in `.env` / `.env.coolify`
+   - `LLM_API_KEY`
+4. Assign the public domain to **app**, container port **80**.
+5. Deploy. Check `https://<your-domain>/health` and `/ready` (`database` should be `up`).
+
+Optional: build/push to Tencent Cloud TCR (`make docker-push`) and set `APP_IMAGE` if you prefer pulling a registry image instead of building on the Coolify host.
 
 ### Tests
 
@@ -181,7 +228,8 @@ retriever (insufficient evidence).
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | Reserved for DB wiring; not read by the current API yet |
+| `APP_IMAGE` | All-in-one app image tag. Local: `unmc-rag:local`. Coolify: TCR URL such as `ccr.ccs.tencentyun.com/<ns>/unmc-rag:latest` |
+| `DATABASE_URL` | Supabase Session pooler URI (`postgresql+asyncpg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`) |
 | `LLM_API_BASE` | External model API base (Zhipu default `https://open.bigmodel.cn/api/paas/v4/`) |
 | `LLM_API_KEY` | API key (local `.env` only; never commit) |
 | `LLM_MODEL` | Chat model name, e.g. `glm-4.5-air` |
@@ -203,11 +251,15 @@ app/guardrails/   # Input and topic scoping
 app/ingestion/    # File / LMS / web ingest interfaces
 app/rag/          # Retrieval and chat orchestration
 app/llm/          # External chat model client
-app/web/          # Jinja UI routes
+app/web/          # Jinja UI routes (local uvicorn)
+frontend/         # static chat page copied into the app image
 tests/            # pytest
 docs/             # PRD, architecture
-deploy/postgres/  # pgvector init
-compose.yaml
+deploy/           # nginx, supervisord
+supabase/         # Postgres migrations (pgvector + rag schema)
+compose.yaml      # Coolify: build app image; DB is Supabase
+compose.local.yaml
+Dockerfile        # nginx + FastAPI all-in-one
 ```
 
 See [docs/architecture.md](./docs/architecture.md) for the full picture.

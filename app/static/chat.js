@@ -141,9 +141,8 @@
           link.rel = "noopener noreferrer";
           link.textContent = title;
           item.append(link);
-          item.append(` — ${citation.location}`);
         } else {
-          item.textContent = `${title} — ${citation.location || ""}`;
+          item.textContent = title;
         }
         citationsList.append(item);
       }

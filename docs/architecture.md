@@ -142,7 +142,7 @@ UNMC_RAG/
 ├── docs/
 │   ├── PRD.md
 │   └── architecture.md
-├── deploy/postgres/init.sql    # pgvector extension
+├── supabase/migrations/        # pgvector + rag schema on Supabase
 ├── compose.yaml
 ├── Dockerfile
 ├── pyproject.toml

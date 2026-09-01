@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${UNMC_RAG_APP_NAME}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/chat.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="brand">${UNMC_RAG_APP_NAME}</p>
+      <h1>Q&amp;A grounded in campus public materials</h1>
+      <p class="lede">
+        I answer questions about student affairs using published campus materials.
+        If something is outside that scope—or the documents don’t cover it—I’ll explain
+        gently and suggest a better way to ask.
+      </p>
+    </header>
+
+    <form id="chat-form" class="ask-form" autocomplete="on">
+      <label>
+        School email
+        <input
+          id="school-email"
+          name="school_email"
+          type="email"
+          required
+          placeholder="student@${UNMC_RAG_SCHOOL_EMAIL_DOMAIN}"
+          value="student@${UNMC_RAG_SCHOOL_EMAIL_DOMAIN}"
+        />
+      </label>
+      <label>
+        Question
+        <textarea
+          id="question"
+          name="question"
+          rows="4"
+          required
+          maxlength="2000"
+          placeholder="Example: When is the next graduation ceremony?"
+        ></textarea>
+      </label>
+      <button type="submit" id="submit-btn">Ask</button>
+    </form>
+
+    <section id="result" class="result" hidden aria-live="polite">
+      <div id="success-panel" class="success-panel" hidden>
+        <div class="result-meta">
+          <span id="status-badge" class="badge">Answered</span>
+          <span id="reason-text" class="reason"></span>
+        </div>
+        <div id="answer-block" class="answer" hidden>
+          <h2>Answer</h2>
+          <p id="answer-text"></p>
+        </div>
+        <div id="citations-block" class="citations" hidden>
+          <h2>Sources</h2>
+          <ul id="citations-list"></ul>
+        </div>
+      </div>
+
+      <div id="notice-panel" class="notice-panel" hidden>
+        <div class="notice-eyebrow" id="notice-eyebrow">Heads up</div>
+        <h2 class="notice-title" id="notice-title"></h2>
+        <p class="notice-body" id="notice-body"></p>
+        <div id="notice-tips" class="notice-tips" hidden>
+          <p class="notice-tips-label">Try asking about:</p>
+          <div id="suggestion-list" class="suggestion-list"></div>
+        </div>
+      </div>
+
+      <p id="error-text" class="error" hidden></p>
+    </section>
+  </div>
+  <script src="/static/chat.js" defer></script>
+</body>
+</html>

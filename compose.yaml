@@ -1,44 +1,40 @@
+# Coolify Docker Compose (Git build pack).
+# Set compose file to compose.yaml — do not use compose.local.yaml (host ports).
+# Postgres is Supabase; this file has a single public service on port 80.
+
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${APP_IMAGE:-unmc-rag:latest}
     environment:
-      UNMC_RAG_APP_NAME: ${UNMC_RAG_APP_NAME:-UNMC Course Assistant}
-      UNMC_RAG_SCHOOL_EMAIL_DOMAIN: ${UNMC_RAG_SCHOOL_EMAIL_DOMAIN:-unmc.edu}
-      UNMC_RAG_COURSE_TERMS: ${UNMC_RAG_COURSE_TERMS:-calculus,linear algebra,graduation,shuttle,counselling,timetable,appeals,examination,visa,wellbeing,amenities}
-      UNMC_RAG_MINIMUM_RETRIEVAL_SCORE: ${UNMC_RAG_MINIMUM_RETRIEVAL_SCORE:-0.3}
-      UNMC_RAG_CORPUS_PATH: ${UNMC_RAG_CORPUS_PATH:-data/scraped/current_students/documents.jsonl}
-      UNMC_RAG_CHUNK_SIZE: ${UNMC_RAG_CHUNK_SIZE:-500}
-      UNMC_RAG_CHUNK_OVERLAP: ${UNMC_RAG_CHUNK_OVERLAP:-80}
-      UNMC_RAG_RETRIEVAL_TOP_K: ${UNMC_RAG_RETRIEVAL_TOP_K:-5}
-      LLM_API_BASE: ${LLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4/}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-glm-4.5-air}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
-    volumes:
-      # Mount local scraped corpus; host must scrape first or provide documents.jsonl
-      - ./data/scraped:/app/data/scraped:ro
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-  db:
-    image: pgvector/pgvector:pg16
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-unmc_rag}
-      POSTGRES_USER: ${POSTGRES_USER:-unmc_rag}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro
+      - SERVICE_FQDN_APP_80
+      - UNMC_RAG_APP_NAME=${UNMC_RAG_APP_NAME:-UNMC Course Assistant}
+      - UNMC_RAG_SCHOOL_EMAIL_DOMAIN=${UNMC_RAG_SCHOOL_EMAIL_DOMAIN:-unmc.edu}
+      - UNMC_RAG_COURSE_TERMS=${UNMC_RAG_COURSE_TERMS:-calculus,linear algebra,graduation,shuttle,counselling,timetable,appeals,examination,visa,wellbeing,amenities}
+      - UNMC_RAG_MINIMUM_RETRIEVAL_SCORE=${UNMC_RAG_MINIMUM_RETRIEVAL_SCORE:-0.3}
+      - UNMC_RAG_CORPUS_PATH=${UNMC_RAG_CORPUS_PATH:-data/scraped/current_students/documents.jsonl}
+      - UNMC_RAG_CHUNK_SIZE=${UNMC_RAG_CHUNK_SIZE:-500}
+      - UNMC_RAG_CHUNK_OVERLAP=${UNMC_RAG_CHUNK_OVERLAP:-80}
+      - UNMC_RAG_RETRIEVAL_TOP_K=${UNMC_RAG_RETRIEVAL_TOP_K:-5}
+      - LLM_API_BASE=${LLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4/}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-glm-4.5-air}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-}
+      - DATABASE_URL=${DATABASE_URL:-}
+    expose:
+      - "80"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-unmc_rag} -d ${POSTGRES_DB:-unmc_rag}"]
-      interval: 5s
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1/health')",
+        ]
+      interval: 15s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 25s
     restart: unless-stopped
-
-volumes:
-  postgres_data:
