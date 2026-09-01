@@ -156,21 +156,20 @@ docker login "$TCR_REGISTRY"          # 用户名为腾讯云账号 ID，密码�
 make docker-push TCR_NAMESPACE="$TCR_NAMESPACE"
 ```
 
-The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest`. Put that value in `APP_IMAGE`.
+The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest`. That is only for a **registry pull** Coolify resource. GitHub App builds must not set `APP_IMAGE`.
 
-### Coolify
+### Coolify (GitHub App)
 
-Coolify builds the single `app` image from this repo (nginx + FastAPI). Postgres stays on Supabase.
+Coolify clones this repo and builds `Dockerfile`. Postgres stays on Supabase.
 
-1. Push Git, including `data/scraped/current_students/documents.jsonl`.
-2. New Resource → **Docker Compose**. Compose file: `compose.yaml` (not `compose.local.yaml`).
-3. Paste environment variables from local `.env.coolify` (or [`.env.coolify.example`](./.env.coolify.example)). Required:
-   - `DATABASE_URL` — Supabase Session pooler URI already in `.env` / `.env.coolify`
-   - `LLM_API_KEY`
-4. Assign the public domain to **app**, container port **80**.
-5. Deploy. Check `https://<your-domain>/health` and `/ready` (`database` should be `up`).
+1. Resource: **Docker Compose**, branch **main**.
+2. Compose file: `docker-compose.yaml` (same as `compose.yaml`). Do not use `compose.local.yaml`.
+3. **Do not set `APP_IMAGE`** — that made Coolify start the wrong image after a successful build.
+4. Paste env from local `.env.coolify`. Required: `DATABASE_URL`, `LLM_API_KEY`.
+5. Domain → service **app**, container port **80** (not 3000 / 8000).
+6. Redeploy. `/health` and `/ready` should respond.
 
-Optional: build/push to Tencent Cloud TCR (`make docker-push`) and set `APP_IMAGE` if you prefer pulling a registry image instead of building on the Coolify host.
+If the container is **Exited**, open the **app** service logs (not the build container) and check the exit code.
 
 ### Tests
 
@@ -228,7 +227,7 @@ retriever (insufficient evidence).
 
 | Variable | Description |
 |----------|-------------|
-| `APP_IMAGE` | All-in-one app image tag. Local: `unmc-rag:local`. Coolify: TCR URL such as `ccr.ccs.tencentyun.com/<ns>/unmc-rag:latest` |
+| `APP_IMAGE` | Optional TCR image tag for `make docker-push` only. **Do not set** on GitHub App Coolify |
 | `DATABASE_URL` | Supabase Session pooler URI (`postgresql+asyncpg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`) |
 | `LLM_API_BASE` | External model API base (Zhipu default `https://open.bigmodel.cn/api/paas/v4/`) |
 | `LLM_API_KEY` | API key (local `.env` only; never commit) |
@@ -257,7 +256,8 @@ tests/            # pytest
 docs/             # PRD, architecture
 deploy/           # nginx, supervisord
 supabase/         # Postgres migrations (pgvector + rag schema)
-compose.yaml      # Coolify: build app image; DB is Supabase
+compose.yaml
+docker-compose.yaml   # Coolify GitHub App
 compose.local.yaml
 Dockerfile        # nginx + FastAPI all-in-one
 ```

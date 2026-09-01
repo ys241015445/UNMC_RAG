@@ -41,6 +41,7 @@ async def create_pool(database_url: str) -> asyncpg.Pool | None:
         ssl=ssl_context,
         statement_cache_size=0,
         command_timeout=15,
+        timeout=20,
     )
 
 

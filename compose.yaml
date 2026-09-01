@@ -1,13 +1,12 @@
-# Coolify Docker Compose (Git build pack).
-# Set compose file to compose.yaml — do not use compose.local.yaml (host ports).
-# Postgres is Supabase; this file has a single public service on port 80.
+# GitHub App + Coolify: build from this repo. Do not set APP_IMAGE.
+# Compose file in Coolify: compose.yaml or docker-compose.yaml (same content).
+# Domain → service `app`, container port 80. Do not use compose.local.yaml.
 
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${APP_IMAGE:-unmc-rag:latest}
     environment:
       - SERVICE_FQDN_APP_80
       - UNMC_RAG_APP_NAME=${UNMC_RAG_APP_NAME:-UNMC Course Assistant}
@@ -31,10 +30,10 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1/health')",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
         ]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 25s
+      retries: 12
+      start_period: 40s
     restart: unless-stopped
