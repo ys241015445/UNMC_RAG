@@ -1,5 +1,6 @@
-# All-in-one image for Coolify (GitHub App): nginx :80 + FastAPI 127.0.0.1:8000.
-# Inject DATABASE_URL and LLM_API_KEY via Coolify env. Never COPY .env.
+# Coolify GitHub App: one image, one public port.
+# nginx :80 (UI + /api /health /ready) → FastAPI 127.0.0.1:8000
+# Secrets come from Coolify env. Never COPY .env.
 
 FROM python:3.12-slim
 
@@ -13,11 +14,9 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         nginx \
-        supervisor \
         gettext-base \
     && rm -rf /var/lib/apt/lists/* \
-    && rm -f /etc/nginx/sites-enabled/default \
-    && mkdir -p /var/log/supervisor /var/run /var/log/nginx
+    && rm -f /etc/nginx/sites-enabled/default /etc/nginx/nginx.conf
 
 COPY pyproject.toml README.md ./
 COPY app ./app
@@ -27,8 +26,7 @@ COPY data/scraped/current_students/documents.jsonl \
      /app/data/scraped/current_students/documents.jsonl
 COPY frontend/index.html /var/www/html/index.html.template
 COPY app/static /var/www/html/static
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
-COPY deploy/supervisord.conf /etc/supervisor/conf.d/unmc-rag.conf
+COPY deploy/nginx.conf /etc/nginx/nginx.conf
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
 
 RUN chmod +x /docker-entrypoint.sh \
@@ -36,7 +34,7 @@ RUN chmod +x /docker-entrypoint.sh \
 
 EXPOSE 80
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=12 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=12 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/health', timeout=4)"
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

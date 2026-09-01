@@ -143,7 +143,7 @@ UNMC_RAG/
 │   ├── PRD.md
 │   └── architecture.md
 ├── supabase/migrations/        # pgvector + rag schema on Supabase
-├── compose.yaml
+├── docker-compose.yaml
 ├── Dockerfile
 ├── pyproject.toml
 └── README.md
@@ -157,7 +157,7 @@ UNMC_RAG/
 
 ```yaml
 # Target logical topology (illustrative for the database integration phase;
-# not a verbatim copy of the current compose.yaml)
+# not a verbatim copy of the current docker-compose.yaml)
 services:
   api:
     image: unmc-rag-api

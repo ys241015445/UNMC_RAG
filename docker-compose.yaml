@@ -1,5 +1,7 @@
-# Coolify / GitHub App auto-detects this filename.
-# Keep in sync with compose.yaml.
+# Coolify + GitHub App (canonical).
+# Resource type: Docker Compose · file: docker-compose.yaml · branch: main
+# Domain → service `app`, container port 80. Do not set APP_IMAGE.
+# Do not use compose.local.yaml on Coolify (that file only publishes localhost:8080).
 
 services:
   app:
@@ -7,6 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
+      - SERVICE_URL_APP_80
       - SERVICE_FQDN_APP_80
       - UNMC_RAG_APP_NAME=${UNMC_RAG_APP_NAME:-UNMC Course Assistant}
       - UNMC_RAG_SCHOOL_EMAIL_DOMAIN=${UNMC_RAG_SCHOOL_EMAIL_DOMAIN:-unmc.edu}
@@ -29,10 +32,10 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/health', timeout=4)",
         ]
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 40s
+      start_period: 45s
     restart: unless-stopped

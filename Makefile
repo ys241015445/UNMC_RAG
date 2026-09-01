@@ -23,7 +23,7 @@ run:
 	$(VENV)/bin/uvicorn app.main:app --reload
 
 docker-up:
-	docker compose -f compose.yaml -f compose.local.yaml up --build
+	docker compose -f docker-compose.yaml -f compose.local.yaml up --build
 
 docker-down:
 	docker compose down

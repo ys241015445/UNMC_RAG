@@ -114,8 +114,8 @@ Prepare `.env` (set `DATABASE_URL` from Supabase Session pooler, and `LLM_API_KE
 cp .env.example .env
 # Edit .env: DATABASE_URL, LLM_API_KEY
 
-docker compose -f compose.yaml -f compose.local.yaml up -d --build
-docker compose ps
+docker compose -f docker-compose.yaml -f compose.local.yaml up -d --build
+docker compose -f docker-compose.yaml -f compose.local.yaml ps
 curl -s http://localhost:8080/health
 curl -s http://localhost:8080/ready
 ```
@@ -160,16 +160,17 @@ The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest
 
 ### Coolify (GitHub App)
 
-Coolify clones this repo and builds `Dockerfile`. Postgres stays on Supabase.
+One GitHub repo → one Coolify resource → one container. nginx on **:80** serves the chat UI and proxies `/api`, `/health`, `/ready` to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
 
-1. Resource: **Docker Compose**, branch **main**.
-2. Compose file: `docker-compose.yaml` (same as `compose.yaml`). Do not use `compose.local.yaml`.
-3. **Do not set `APP_IMAGE`** — that made Coolify start the wrong image after a successful build.
-4. Paste env from local `.env.coolify`. Required: `DATABASE_URL`, `LLM_API_KEY`.
-5. Domain → service **app**, container port **80** (not 3000 / 8000).
-6. Redeploy. `/health` and `/ready` should respond.
+1. Resource type **Docker Compose**, branch **main**.
+2. Compose file **`docker-compose.yaml`**. Never select `compose.local.yaml`.
+3. **Do not set `APP_IMAGE`.**
+4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`.
+5. Domain → service **app**, container port **80**.
+6. Healthcheck is in the compose file: `GET http://127.0.0.1:80/health` (start period 45s). Compose has no Healthchecks UI.
+7. Redeploy. Open `/health` then the site root.
 
-If the container is **Exited**, open the **app** service logs (not the build container) and check the exit code.
+If the container is **Exited**, read **app** logs (not the build/helper container). Startup prints `[unmc-rag] starting uvicorn` / `starting nginx`.
 
 ### Tests
 
@@ -227,7 +228,7 @@ retriever (insufficient evidence).
 
 | Variable | Description |
 |----------|-------------|
-| `APP_IMAGE` | Optional TCR image tag for `make docker-push` only. **Do not set** on GitHub App Coolify |
+| `APP_IMAGE` | Optional TCR tag for `make docker-push` only. **Unset** on GitHub App Coolify |
 | `DATABASE_URL` | Supabase Session pooler URI (`postgresql+asyncpg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`) |
 | `LLM_API_BASE` | External model API base (Zhipu default `https://open.bigmodel.cn/api/paas/v4/`) |
 | `LLM_API_KEY` | API key (local `.env` only; never commit) |
@@ -254,12 +255,11 @@ app/web/          # Jinja UI routes (local uvicorn)
 frontend/         # static chat page copied into the app image
 tests/            # pytest
 docs/             # PRD, architecture
-deploy/           # nginx, supervisord
+deploy/           # nginx + container entrypoint
 supabase/         # Postgres migrations (pgvector + rag schema)
-compose.yaml
-docker-compose.yaml   # Coolify GitHub App
-compose.local.yaml
-Dockerfile        # nginx + FastAPI all-in-one
+docker-compose.yaml  # Coolify GitHub App
+compose.local.yaml   # local 8080:80 only
+Dockerfile           # nginx + FastAPI all-in-one
 ```
 
 See [docs/architecture.md](./docs/architecture.md) for the full picture.
