@@ -9,8 +9,14 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import create_api_router
 from app.auth.policy import SchoolEmailPolicy
-from app.config import get_database_settings, get_settings
+from app.config import (
+    get_database_settings,
+    get_probe_settings,
+    get_settings,
+    get_smtp_settings,
+)
 from app.db import close_pool, create_pool, ping_db
+from app.healthcheck.loop import start_background_probe, stop_background_probe
 from app.rag.factory import build_chat_service
 from app.web.ui import create_ui_router
 
@@ -33,9 +39,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.exception("Failed to connect to Supabase Postgres")
             pool = None
     app.state.db_pool = pool
+    start_background_probe(
+        app,
+        chat_service=chat_service,
+        probe_settings=get_probe_settings(),
+        smtp_settings=get_smtp_settings(),
+    )
     try:
         yield
     finally:
+        await stop_background_probe(app)
         await close_pool(getattr(app.state, "db_pool", None))
 
 

@@ -56,9 +56,7 @@ def test_extract_page_from_fixture() -> None:
 
 def test_write_outputs_creates_jsonl_and_markdown(tmp_path: Path) -> None:
     html = FIXTURE.read_text(encoding="utf-8")
-    record = scrape.extract_page(
-        html, "https://www.nottingham.edu.my/CurrentStudents/Academic/"
-    )
+    record = scrape.extract_page(html, "https://www.nottingham.edu.my/CurrentStudents/Academic/")
     scrape.write_outputs([record], out_dir=tmp_path, errors=[], seed=scrape.DEFAULT_SEED)
 
     documents = (tmp_path / "documents.jsonl").read_text(encoding="utf-8").strip().splitlines()

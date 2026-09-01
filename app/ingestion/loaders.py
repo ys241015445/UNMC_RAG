@@ -36,7 +36,5 @@ def load_documents_jsonl(path: Path) -> list[LoadedDocument]:
             text = str(payload.get("text") or "").strip()
             if not source_id or not text:
                 continue
-            documents.append(
-                LoadedDocument(source_id=source_id, title=title, url=url, text=text)
-            )
+            documents.append(LoadedDocument(source_id=source_id, title=title, url=url, text=text))
     return documents

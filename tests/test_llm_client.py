@@ -9,11 +9,7 @@ def test_openai_compatible_client_parses_content() -> None:
         assert request.headers["Authorization"] == "Bearer test-key"
         return httpx.Response(
             200,
-            json={
-                "choices": [
-                    {"message": {"role": "assistant", "content": "  hello from glm  "}}
-                ]
-            },
+            json={"choices": [{"message": {"role": "assistant", "content": "  hello from glm  "}}]},
         )
 
     client = OpenAICompatibleChatClient(

@@ -34,9 +34,7 @@ class EvidenceAnswerGenerator:
             )
         evidence = "\n\n".join(evidence_blocks)
         user_prompt = (
-            f"[Question]\n{question}\n\n"
-            f"[Evidence]\n{evidence}\n\n"
-            "Answer using only the evidence."
+            f"[Question]\n{question}\n\n[Evidence]\n{evidence}\n\nAnswer using only the evidence."
         )
         return self._client.complete(
             [

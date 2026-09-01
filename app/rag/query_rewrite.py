@@ -31,10 +31,7 @@ class QueryRewriter:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {
                     "role": "user",
-                    "content": (
-                        f"Original question:\n{cleaned}\n\n"
-                        "Rewritten search query:"
-                    ),
+                    "content": (f"Original question:\n{cleaned}\n\nRewritten search query:"),
                 },
             ],
             temperature=0.0,

@@ -62,6 +62,47 @@ class DatabaseSettings(BaseSettings):
         return url.startswith(("postgres://", "postgresql://", "postgresql+asyncpg://"))
 
 
+class SmtpSettings(BaseSettings):
+    """Loads SMTP_* from .env for failure notification mail."""
+
+    host: str = ""
+    port: int = 587
+    username: str = ""
+    password: str = ""
+    from_address: str = ""
+    to_address: str = "yellow.sea@live.cn"
+    use_tls: bool = True
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="SMTP_",
+        extra="ignore",
+    )
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.host.strip() and self.to_address.strip())
+
+    @property
+    def sender(self) -> str:
+        return self.from_address.strip() or self.username.strip() or self.to_address.strip()
+
+
+class ProbeSettings(BaseSettings):
+    """Synthetic query loop: UNMC_RAG_PROBE_*."""
+
+    enabled: bool = True
+    interval_hours: float = 96
+    startup_delay_seconds: float = 120
+    question: str = "When is the next graduation ceremony?"
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="UNMC_RAG_PROBE_",
+        extra="ignore",
+    )
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
@@ -75,3 +116,13 @@ def get_llm_settings() -> LLMSettings:
 @lru_cache
 def get_database_settings() -> DatabaseSettings:
     return DatabaseSettings()
+
+
+@lru_cache
+def get_smtp_settings() -> SmtpSettings:
+    return SmtpSettings()
+
+
+@lru_cache
+def get_probe_settings() -> ProbeSettings:
+    return ProbeSettings()

@@ -123,6 +123,8 @@ curl -s http://localhost:8080/ready
 Open <http://localhost:8080/>.  
 One `app` container serves the UI on port 80 and proxies `/api`, `/health`, and `/ready` to FastAPI. Postgres is **Supabase**, not a Compose service.
 
+About two minutes after boot the app asks `When is the next graduation ceremony?` through the real RAG path, then repeats every 96 hours. If the result is not `answered`, it emails `SMTP_TO_ADDRESS`. Set `SMTP_HOST` (and mailbox credentials) or the probe still runs but only logs.
+
 ### Supabase
 
 Project: **UNMC_RAG** (`mqyqcoxzapzwkuxvctcv`, Tokyo / `ap-northeast-1`).
@@ -165,7 +167,7 @@ One GitHub repo → one Coolify resource → one container. nginx on **:80** ser
 1. Resource type **Docker Compose**, branch **main**.
 2. Compose file **`docker-compose.yaml`**. Never select `compose.local.yaml`.
 3. **Do not set `APP_IMAGE`.**
-4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`.
+4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`. For failure mail, also set `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`.
 5. Domain → service **app**, container port **80**.
 6. Docker / Coolify healthchecks are disabled (they were marking the stack unhealthy during startup).
 7. Redeploy. Open `/health` then the site root.
@@ -239,6 +241,12 @@ retriever (insufficient evidence).
 | `UNMC_RAG_CORPUS_PATH` | Path to local `documents.jsonl` for keyword retrieval |
 | `UNMC_RAG_CHUNK_SIZE` / `CHUNK_OVERLAP` | Chunk size and overlap |
 | `UNMC_RAG_RETRIEVAL_TOP_K` | Max chunks returned |
+| `UNMC_RAG_PROBE_ENABLED` | Background simulated query (`true` by default in Compose) |
+| `UNMC_RAG_PROBE_INTERVAL_HOURS` | Probe interval (default `96`) |
+| `UNMC_RAG_PROBE_STARTUP_DELAY_SECONDS` | First probe delay after boot (default `120`) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP for failure mail; unset `SMTP_HOST` skips sending |
+| `SMTP_TO_ADDRESS` | Failure recipient (default `yellow.sea@live.cn`) |
+| `SMTP_FROM_ADDRESS` | From address; falls back to `SMTP_USERNAME` |
 
 ---
 
@@ -247,6 +255,7 @@ retriever (insufficient evidence).
 ```
 app/api/          # HTTP API
 app/auth/         # Email policy and identity-provider interfaces
+app/healthcheck/  # 96h simulated query + SMTP failure mail
 app/guardrails/   # Input and topic scoping
 app/ingestion/    # File / LMS / web ingest interfaces
 app/rag/          # Retrieval and chat orchestration
