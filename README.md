@@ -167,7 +167,7 @@ One GitHub repo → one Coolify resource → one container. nginx on **:80** ser
 3. **Do not set `APP_IMAGE`.**
 4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`.
 5. Domain → service **app**, container port **80**.
-6. Healthcheck is in the compose file: `GET http://127.0.0.1:80/health` (start period 45s). Compose has no Healthchecks UI.
+6. Docker / Coolify healthchecks are disabled (they were marking the stack unhealthy during startup).
 7. Redeploy. Open `/health` then the site root.
 
 If the container is **Exited**, read **app** logs (not the build/helper container). Startup prints `[unmc-rag] starting uvicorn` / `starting nginx`.

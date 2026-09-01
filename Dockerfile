@@ -34,7 +34,4 @@ RUN chmod +x /docker-entrypoint.sh \
 
 EXPOSE 80
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=12 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/health', timeout=4)"
-
 ENTRYPOINT ["/docker-entrypoint.sh"]
