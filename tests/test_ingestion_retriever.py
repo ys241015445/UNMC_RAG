@@ -116,3 +116,27 @@ def test_build_retriever_loads_jsonl(tmp_path: Path) -> None:
     hits = retriever.search("graduation ceremonies campus")
     assert hits
     assert hits[0].source_id == "g1"
+
+
+def test_build_retriever_loads_comma_separated_corpora(tmp_path: Path) -> None:
+    first = tmp_path / "current.jsonl"
+    second = tmp_path / "quality.jsonl"
+    first.write_text(
+        '{"id":"g1","title":"Graduation","url":"https://example.edu/g",'
+        '"text":"Graduation ceremonies are held twice a year on campus."}\n',
+        encoding="utf-8",
+    )
+    second.write_text(
+        '{"id":"q1","title":"Quality Manual","url":"https://example.edu/q",'
+        '"text":"The Quality Manual sets academic regulations for assessment."}\n',
+        encoding="utf-8",
+    )
+    settings = Settings(
+        corpus_path=f"{first},{second}",
+        chunk_size=200,
+        chunk_overlap=20,
+    )
+    retriever = build_retriever(settings)
+    hits = retriever.search("quality manual academic regulations assessment")
+    assert hits
+    assert hits[0].source_id == "q1"

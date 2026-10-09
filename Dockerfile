@@ -7,7 +7,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin" \
-    UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl
+    UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl,data/scraped/quality_manual/documents.jsonl
 
 WORKDIR /app
 
@@ -24,6 +24,8 @@ RUN pip install --no-cache-dir .
 
 COPY data/scraped/current_students/documents.jsonl \
      /app/data/scraped/current_students/documents.jsonl
+COPY data/scraped/quality_manual/documents.jsonl \
+     /app/data/scraped/quality_manual/documents.jsonl
 COPY frontend/index.html /var/www/html/index.html.template
 COPY app/static /var/www/html/static
 COPY deploy/nginx.conf /etc/nginx/nginx.conf

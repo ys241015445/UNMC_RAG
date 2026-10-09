@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     school_email_domain: str = "unmc.edu"
     course_terms: str = (
         "calculus,linear algebra,graduation,shuttle,counselling,"
-        "timetable,appeals,examination,visa,wellbeing,amenities"
+        "timetable,appeals,examination,visa,wellbeing,amenities,"
+        "quality manual,academic regulations,assessment,admissions,complaints"
     )
     minimum_retrieval_score: float = 0.75
     corpus_path: str = ""

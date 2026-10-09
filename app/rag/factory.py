@@ -3,6 +3,7 @@ from pathlib import Path
 from app.config import LLMSettings, Settings, get_llm_settings, get_settings
 from app.guardrails.policy import GuardrailPolicy
 from app.guardrails.topic_classifier import LLMTopicClassifier
+from app.ingestion.loaders import load_documents_jsonl
 from app.llm.client import OpenAICompatibleChatClient
 from app.llm.generator import EvidenceAnswerGenerator
 from app.rag.contracts import Retriever
@@ -11,19 +12,25 @@ from app.rag.retrievers import EmptyRetriever, LocalKeywordRetriever
 from app.rag.service import AnswerGenerator, ChatService
 
 
+def corpus_paths(corpus: str) -> list[Path]:
+    return [Path(part.strip()) for part in corpus.split(",") if part.strip()]
+
+
 def build_retriever(settings: Settings | None = None) -> Retriever:
-    """Build a retriever from settings; fall back to empty when corpus is missing."""
+    """Build a retriever from one or more JSONL corpora; empty if none exist."""
     resolved = settings or get_settings()
-    corpus = resolved.corpus_path.strip()
-    if not corpus:
+    paths = [path for path in corpus_paths(resolved.corpus_path) if path.is_file()]
+    if not paths:
         return EmptyRetriever()
 
-    path = Path(corpus)
-    if not path.is_file():
+    documents = []
+    for path in paths:
+        documents.extend(load_documents_jsonl(path))
+    if not documents:
         return EmptyRetriever()
 
-    return LocalKeywordRetriever.from_documents_jsonl(
-        path,
+    return LocalKeywordRetriever.from_documents(
+        documents,
         chunk_size=resolved.chunk_size,
         overlap=resolved.chunk_overlap,
         top_k=resolved.retrieval_top_k,

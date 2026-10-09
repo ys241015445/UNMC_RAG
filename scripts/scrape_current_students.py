@@ -88,6 +88,15 @@ def in_scope(url: str, *, host: str = ALLOWED_HOST, prefix: str = ALLOWED_PREFIX
     return path == prefix.rstrip("/") or path.startswith(prefix)
 
 
+def is_listing_page(url: str) -> bool:
+    """Skip A–Z index pagination; those query variants are not regulation pages."""
+    query = urlparse(url).query.casefold()
+    if not query:
+        return False
+    markers = ("genericlist_", "azlisting_", "gotopage")
+    return any(marker in query for marker in markers)
+
+
 def is_attachment(url: str) -> bool:
     path = urlparse(url).path.lower()
     return any(path.endswith(suffix) for suffix in ATTACHMENT_SUFFIXES)
@@ -119,7 +128,20 @@ def _pick_main(soup: BeautifulSoup):
     return soup.body or soup
 
 
-def extract_page(html: str, page_url: str) -> PageRecord:
+def path_prefix(url: str) -> str:
+    parts = [part for part in urlparse(url).path.split("/") if part]
+    if not parts:
+        return "/"
+    return f"/{parts[0]}/"
+
+
+def extract_page(
+    html: str,
+    page_url: str,
+    *,
+    host: str = ALLOWED_HOST,
+    prefix: str = ALLOWED_PREFIX,
+) -> PageRecord:
     soup = BeautifulSoup(html, "lxml")
     for selector in NOISE_SELECTORS:
         for node in soup.select(selector):
@@ -156,7 +178,7 @@ def extract_page(html: str, page_url: str) -> PageRecord:
                 seen_att.add(absolute)
                 attachments.append(absolute)
             continue
-        if in_scope(absolute) and absolute not in seen_out:
+        if in_scope(absolute, host=host, prefix=prefix) and absolute not in seen_out:
             seen_out.add(absolute)
             outbound.append(absolute)
 
@@ -267,19 +289,44 @@ def write_outputs(
     )
 
 
+def sitemap_urls(sitemap_url: str, *, timeout: float = 60.0) -> list[str]:
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/xml,text/xml"}
+    with httpx.Client(headers=headers, follow_redirects=True, timeout=timeout) as client:
+        response = client.get(sitemap_url)
+        response.raise_for_status()
+    locs = re.findall(r"<loc>\s*([^<]+)\s*</loc>", response.text, flags=re.IGNORECASE)
+    return [normalize_url(loc) for loc in locs if normalize_url(loc)]
+
+
 def crawl(
     *,
     seed: str = DEFAULT_SEED,
     max_pages: int = 200,
     delay: float = 0.75,
     timeout: float = 30.0,
+    host: str | None = None,
+    prefix: str | None = None,
+    extra_urls: Iterable[str] = (),
 ) -> tuple[list[PageRecord], list[dict]]:
     seed_url = normalize_url(seed)
-    if not in_scope(seed_url):
+    resolved_host = (host or urlparse(seed_url).netloc).lower()
+    resolved_prefix = prefix or path_prefix(seed_url)
+    if not in_scope(seed_url, host=resolved_host, prefix=resolved_prefix):
         raise ValueError(f"seed is outside the allowlist: {seed_url}")
 
     queue: deque[str] = deque([seed_url])
     seen: set[str] = {seed_url}
+    for extra in extra_urls:
+        normalized = normalize_url(extra)
+        if (
+            normalized
+            and normalized not in seen
+            and in_scope(normalized, host=resolved_host, prefix=resolved_prefix)
+            and not is_attachment(normalized)
+            and not is_listing_page(normalized)
+        ):
+            seen.add(normalized)
+            queue.append(normalized)
     records: list[PageRecord] = []
     errors: list[dict] = []
 
@@ -307,7 +354,7 @@ def crawl(
                     )
                     continue
                 final_url = normalize_url(str(response.url))
-                if not in_scope(final_url):
+                if not in_scope(final_url, host=resolved_host, prefix=resolved_prefix):
                     errors.append(
                         {
                             "url": url,
@@ -316,10 +363,21 @@ def crawl(
                         }
                     )
                     continue
-                record = extract_page(response.text, final_url)
+                record = extract_page(
+                    response.text,
+                    final_url,
+                    host=resolved_host,
+                    prefix=resolved_prefix,
+                )
                 records.append(record)
+                print(f"fetched {len(records)} queued {len(queue)} {final_url}", flush=True)
                 for link in record.outbound_links:
-                    if link not in seen and in_scope(link) and not is_attachment(link):
+                    if (
+                        link not in seen
+                        and in_scope(link, host=resolved_host, prefix=resolved_prefix)
+                        and not is_attachment(link)
+                        and not is_listing_page(link)
+                    ):
                         seen.add(link)
                         queue.append(link)
             except Exception as exc:  # noqa: BLE001 - one page failure must not abort the run
@@ -333,12 +391,23 @@ def crawl(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", default=DEFAULT_SEED)
+    parser.add_argument("--host", default="", help="Allowlisted host; defaults to the seed host")
+    parser.add_argument(
+        "--prefix",
+        default="",
+        help="Allowlisted path prefix; defaults to the seed's first path segment",
+    )
     parser.add_argument(
         "--out-dir",
         type=Path,
         default=Path("data/scraped/current_students"),
     )
     parser.add_argument("--max-pages", type=int, default=200)
+    parser.add_argument(
+        "--sitemap",
+        default="",
+        help="Optional sitemap.xml; in-scope URLs are queued before the crawl",
+    )
     parser.add_argument("--delay", type=float, default=0.75)
     parser.add_argument("--timeout", type=float, default=30.0)
     return parser
@@ -346,16 +415,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    extra_urls = sitemap_urls(args.sitemap, timeout=args.timeout) if args.sitemap else []
     records, errors = crawl(
         seed=args.seed,
         max_pages=args.max_pages,
         delay=args.delay,
         timeout=args.timeout,
+        host=args.host or None,
+        prefix=args.prefix or None,
+        extra_urls=extra_urls,
     )
     write_outputs(records, out_dir=args.out_dir, errors=errors, seed=normalize_url(args.seed))
-    print(
-        f"Crawl finished: pages={len(records)} errors={len(errors)} out={args.out_dir.resolve()}"
-    )
+    print(f"Crawl finished: pages={len(records)} errors={len(errors)} out={args.out_dir.resolve()}")
     return 0
 
 
