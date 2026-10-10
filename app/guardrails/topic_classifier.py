@@ -14,7 +14,8 @@ SYSTEM_PROMPT = (
     "Decide whether the user's question is related to student affairs / current-student "
     "services at a university campus.\n"
     "IN SCOPE examples: graduation / graduate ceremony dates, student registry, "
-    "enrolment, examinations, quality manual, academic regulations, assessment, "
+    "enrolment, examinations, Nottingham foundation programme (NFP), progression, "
+    "attendance, grading, academic misconduct, modules, assessment, "
     "admissions, complaints, "
     "timetabling, academic appeals, misconduct, counselling, mental health, disability "
     "support, visa/immigration for students, shuttle bus, campus facilities, amenities, "
@@ -41,11 +42,12 @@ class LLMTopicClassifier:
         self._client = client
         self._topic_hints = sorted(term for term in (topic_hints or set()) if term.strip())
         self._domain_description = domain_description.strip() or (
-            "University of Nottingham student-affairs topics, including the UNM Current "
-            "Students portal and the Quality Manual (academic regulations, assessment, "
-            "admissions, complaints, registration): academic services, student registry, "
-            "graduation, examinations, timetabling, appeals, wellbeing/counselling, "
-            "facilities, shuttle, visa, careers, and student support."
+            "University of Nottingham Malaysia student-affairs topics, including the "
+            "Current Students portal and the Nottingham Foundation Programme (NFP): "
+            "progression, attendance, grading, academic misconduct, modules, "
+            "assessment, admissions, complaints, graduation, examinations, "
+            "timetabling, appeals, wellbeing, facilities, shuttle, visa, and "
+            "student support."
         )
 
     def is_on_topic(self, question: str) -> bool:

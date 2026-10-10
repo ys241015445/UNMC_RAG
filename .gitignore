@@ -17,8 +17,8 @@ data/scraped/*
 !data/scraped/current_students/
 data/scraped/current_students/*
 !data/scraped/current_students/documents.jsonl
-!data/scraped/quality_manual/
-data/scraped/quality_manual/*
-!data/scraped/quality_manual/documents.jsonl
+!data/scraped/nfp/
+data/scraped/nfp/*
+!data/scraped/nfp/documents.jsonl
 backups/*
 !backups/.gitkeep

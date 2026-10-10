@@ -16,10 +16,6 @@ data/scraped/current_students/pages
 data/scraped/current_students/index.json
 data/scraped/current_students/attachments.jsonl
 data/scraped/current_students/run_meta.json
-data/scraped/quality_manual/pages
-data/scraped/quality_manual/index.json
-data/scraped/quality_manual/attachments.jsonl
-data/scraped/quality_manual/run_meta.json
 deploy/postgres
 scripts
 *.md

@@ -194,17 +194,17 @@ python scripts/scrape_current_students.py \
   --out-dir data/scraped/current_students \
   --max-pages 200 \
   --delay 0.75
-python scripts/scrape_current_students.py \
-  --seed https://www.nottingham.ac.uk/qualitymanual/quality-manual.aspx \
-  --sitemap https://www.nottingham.ac.uk/sitemap.xml \
-  --out-dir data/scraped/quality_manual \
-  --max-pages 400 \
-  --delay 0.4
 ```
 
 Outputs: `documents.jsonl`, `pages/*.md`, `index.json`, `attachments.jsonl`,
-`run_meta.json`. Only each corpus `documents.jsonl` is committed. The Quality Manual
-crawl stays under `/qualitymanual/` on `www.nottingham.ac.uk`.
+`run_meta.json`. Only `documents.jsonl` is committed.
+
+NFP handbooks (PDF and Excel) are converted separately:
+
+```bash
+pip install -e ".[ingest]"
+python scripts/build_nfp_corpus.py --source-dir "/path/to/NFP Resources"
+```
 
 ### Connect scraped corpus to the Q&A prototype
 
@@ -213,7 +213,7 @@ This stage uses **local keyword retrieval** (no embeddings / pgvector yet). Conf
 ```bash
 cp .env.example .env
 # Confirm:
-# UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl,data/scraped/quality_manual/documents.jsonl
+# UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl,data/scraped/nfp/documents.jsonl
 # UNMC_RAG_MINIMUM_RETRIEVAL_SCORE=0.3
 # UNMC_RAG_COURSE_TERMS=...includes graduation,shuttle,etc...
 # LLM_API_KEY=... LLM_MODEL=glm-4.5-air (optional grounded generation)

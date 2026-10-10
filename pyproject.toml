@@ -30,6 +30,10 @@ scrape = [
   "beautifulsoup4>=4.13",
   "lxml>=5.4",
 ]
+ingest = [
+  "pypdf>=5",
+  "openpyxl>=3.1",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
