@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     chunk_size: int = 500
     chunk_overlap: int = 80
     retrieval_top_k: int = 5
+    # Prior user/assistant messages sent with each study turn. 0 sends none.
+    experiment_history_messages: int = 16
+    # Optional override for app/experiment/conditions.json.
+    experiment_conditions_path: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

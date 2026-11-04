@@ -34,6 +34,26 @@ The chat API uses the `X-School-Email` header as a demo identity gate. That head
 can be forged and is **for local development only**—do not expose it as real auth on
 the public internet. Complete magic-link or campus SSO before any pilot.
 
+## Psychology experiment (competence × warmth)
+
+Four participant links share one multi-turn chat screen. The server picks the persona.
+Participants are not shown condition names. Mapping and storage details:
+[docs/experiment-conditions.md](./docs/experiment-conditions.md).
+Prompts live in [app/experiment/conditions.json](./app/experiment/conditions.json).
+
+| Path | Condition | Competence | Warmth |
+|------|-----------|------------|--------|
+| `/k7q2` | LL | low | low |
+| `/m3x9` | LH | low | high |
+| `/p8d4` | HL | high | low |
+| `/t5w1` | HH | high | high |
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Open <http://localhost:8000/k7q2> (or `/m3x9`, `/p8d4`, `/t5w1`). The transcript stays on the page, and each follow-up is sent with that session's saved history. Every session and message is stored with the school email, condition id, and opaque path in `rag.chat_sessions` and `rag.chat_messages` (migration `supabase/migrations/20261104150000_create_experiment_conversations.sql`). Apply that migration before collecting data. Without `DATABASE_URL`, transcripts stay in process memory only.
+
 ---
 
 ## Docs
@@ -239,6 +259,8 @@ retriever (insufficient evidence).
 | `UNMC_RAG_CORPUS_PATH` | Path to local `documents.jsonl` for keyword retrieval |
 | `UNMC_RAG_CHUNK_SIZE` / `CHUNK_OVERLAP` | Chunk size and overlap |
 | `UNMC_RAG_RETRIEVAL_TOP_K` | Max chunks returned |
+| `UNMC_RAG_EXPERIMENT_HISTORY_MESSAGES` | Prior study-chat messages sent to the model (default 16) |
+| `UNMC_RAG_EXPERIMENT_CONDITIONS_PATH` | Optional override for `app/experiment/conditions.json` |
 
 ---
 
