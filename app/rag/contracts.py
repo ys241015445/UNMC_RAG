@@ -13,3 +13,9 @@ class RetrievedChunk:
 
 class Retriever(Protocol):
     def search(self, question: str) -> list[RetrievedChunk]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class DialogueTurn:
+    role: str
+    content: str

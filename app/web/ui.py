@@ -1,8 +1,10 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+
+from app.experiment.catalog import get_condition_catalog
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -20,6 +22,35 @@ def create_ui_router(*, app_name: str, school_email_domain: str) -> APIRouter:
                 "app_name": app_name,
                 "school_email_domain": school_email_domain,
             },
+        )
+
+    def _page(entry_path: str):
+        def experiment_page(request: Request) -> HTMLResponse:
+            condition = get_condition_catalog().get(entry_path)
+            if condition is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+            return templates.TemplateResponse(
+                request,
+                "session_chat.html",
+                {
+                    "app_name": app_name,
+                    "school_email_domain": school_email_domain,
+                    "entry_path": condition.entry_path,
+                    "opening_message": condition.opening_message,
+                },
+                headers={"Cache-Control": "no-store"},
+            )
+
+        experiment_page.__name__ = f"session_chat_{entry_path}"
+        return experiment_page
+
+    for condition in get_condition_catalog().conditions:
+        router.add_api_route(
+            f"/{condition.entry_path}",
+            _page(condition.entry_path),
+            methods=["GET"],
+            response_class=HTMLResponse,
+            include_in_schema=False,
         )
 
     return router

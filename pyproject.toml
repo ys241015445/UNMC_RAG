@@ -38,6 +38,7 @@ packages = ["app"]
 "app/templates" = "app/templates"
 "app/static" = "app/static"
 "app/certs" = "app/certs"
+"app/experiment/conditions.json" = "app/experiment/conditions.json"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

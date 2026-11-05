@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import create_api_router
 from app.auth.policy import SchoolEmailPolicy
 from app.config import get_database_settings, get_settings
+from app.conversations.store import InMemoryConversationStore
 from app.db import close_pool, create_pool, ping_db
 from app.rag.factory import build_chat_service
 from app.web.ui import create_ui_router
@@ -33,6 +34,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.exception("Failed to connect to Supabase Postgres")
             pool = None
     app.state.db_pool = pool
+    if getattr(app.state, "memory_store", None) is None:
+        app.state.memory_store = InMemoryConversationStore()
+    if pool is None:
+        logger.warning(
+            "DATABASE_URL is unset; study conversations stay in process memory until restart"
+        )
     try:
         yield
     finally:
@@ -45,6 +52,7 @@ app = FastAPI(
     description="Answers only questions supported by on-campus course evidence.",
     lifespan=lifespan,
 )
+app.state.memory_store = InMemoryConversationStore()
 app.include_router(
     create_ui_router(
         app_name=settings.app_name,
