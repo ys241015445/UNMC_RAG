@@ -276,6 +276,74 @@ def test_session_cannot_be_reused_on_another_path() -> None:
     assert list(store.sessions) == [session_id]
 
 
+def test_sessions_for_email_are_isolated_and_resume_loads_history() -> None:
+    store = InMemoryConversationStore()
+    client = _client(store, RecordingGenerator(), ChunkRetriever())
+    ada = {"X-School-Email": "Ada@UNMC.edu"}
+    bob = {"X-School-Email": "bob@unmc.edu"}
+
+    first = client.post(
+        "/api/v1/chat/k7q2/messages",
+        json={"message": "When is the graduation ceremony?"},
+        headers=ada,
+    )
+    second = client.post(
+        "/api/v1/chat/k7q2/messages",
+        json={"message": "When is the graduation ceremony?"},
+        headers=ada,
+    )
+    other_path = client.post(
+        "/api/v1/chat/m3x9/messages",
+        json={"message": "When is the graduation ceremony?"},
+        headers=ada,
+    )
+    other_email = client.post(
+        "/api/v1/chat/k7q2/messages",
+        json={"message": "When is the graduation ceremony?"},
+        headers=bob,
+    )
+
+    listed = client.get("/api/v1/chat/k7q2/sessions", headers=ada)
+    assert listed.status_code == 200
+    body = listed.json()
+    assert "condition_id" not in body
+    assert "competence" not in listed.text
+    assert "warmth" not in listed.text
+    ids = [item["session_id"] for item in body["sessions"]]
+    assert ids == [second.json()["session_id"], first.json()["session_id"]]
+    assert other_path.json()["session_id"] not in ids
+    assert other_email.json()["session_id"] not in ids
+    assert "created_at" in body["sessions"][0]
+    assert "updated_at" in body["sessions"][0]
+
+    bob_list = client.get("/api/v1/chat/k7q2/sessions", headers=bob)
+    bob_ids = [item["session_id"] for item in bob_list.json()["sessions"]]
+    assert bob_ids == [other_email.json()["session_id"]]
+
+    resumed = client.get(f"/api/v1/chat/k7q2/sessions/{ids[0]}", headers=ada)
+    assert resumed.status_code == 200
+    assert any(
+        message["role"] == "user" and "graduation" in message["content"]
+        for message in resumed.json()["messages"]
+    )
+    hidden = client.get(
+        f"/api/v1/chat/k7q2/sessions/{other_email.json()['session_id']}",
+        headers=ada,
+    )
+    assert hidden.status_code == 404
+
+    rows = store.snapshot(ids[0])
+    assert rows
+    assert {row.school_email for row in rows} == {"ada@unmc.edu"}
+    assert all(row.condition_id == "LL" for row in rows)
+
+
+def test_session_list_requires_school_email() -> None:
+    client = _client(InMemoryConversationStore(), RecordingGenerator(), ChunkRetriever())
+    response = client.get("/api/v1/chat/k7q2/sessions")
+    assert response.status_code == 401
+
+
 def test_transcript_omits_email_and_condition() -> None:
     store = InMemoryConversationStore()
     client = _client(store, RecordingGenerator(), ChunkRetriever())

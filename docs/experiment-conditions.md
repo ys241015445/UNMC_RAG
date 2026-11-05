@@ -62,6 +62,8 @@ Tables live in the private `rag` schema, with row-level security enabled and no 
 
 The identity header is the same demo gate as the rest of this prototype. It is not SSO. Without `DATABASE_URL`, transcripts stay in process memory and disappear on restart.
 
+The school email is the resume key for a path. `GET /api/v1/chat/{path}/sessions` with `X-School-Email` lists that address’s sessions on that path only, newest first (`session_id`, `created_at`, `updated_at`; no condition id). The chat page does this when the email is entered or changed, loads the latest transcript, and keeps sending later turns on that session. `sessionStorage` stores the session id under the email and path, so a refresh continues the same thread. A different email, or the same email on another path, does not see those messages.
+
 Example once the API is running:
 
 ```bash
@@ -69,6 +71,13 @@ curl -s -X POST http://localhost:8000/api/v1/chat/k7q2/messages \
   -H 'Content-Type: application/json' \
   -H 'X-School-Email: student@unmc.edu' \
   -d '{"message":"When is the next graduation ceremony?"}'
+```
+
+List that address’s threads on the same path:
+
+```bash
+curl -s http://localhost:8000/api/v1/chat/k7q2/sessions \
+  -H 'X-School-Email: student@unmc.edu'
 ```
 
 A follow-up repeats `session_id` from that response. Load the thread with:

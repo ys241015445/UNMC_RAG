@@ -23,6 +23,7 @@ class SessionRecord:
     condition_id: str
     entry_path: str
     created_at: datetime
+    updated_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +54,12 @@ class ConversationStore(Protocol):
 
     async def get_session(self, session_id: str) -> SessionRecord | None: ...
 
+    async def list_sessions(
+        self,
+        school_email: str,
+        entry_path: str | None = None,
+    ) -> list[SessionRecord]: ...
+
     async def list_messages(self, session_id: str) -> list[MessageRecord]: ...
 
     async def append_message(
@@ -77,6 +84,8 @@ class InMemoryConversationStore:
     def __init__(self) -> None:
         self.sessions: dict[str, SessionRecord] = {}
         self._messages: dict[str, list[MessageRecord]] = {}
+        self._activity: dict[str, int] = {}
+        self._next_activity = 0
 
     def snapshot(self, session_id: str) -> list[MessageRecord]:
         return list(self._messages.get(session_id, []))
@@ -96,9 +105,11 @@ class InMemoryConversationStore:
             condition_id=condition_id,
             entry_path=entry_path,
             created_at=now,
+            updated_at=now,
         )
         self.sessions[session.id] = session
         self._messages[session.id] = []
+        self._touch(session.id)
         if opening_message.strip():
             await self.append_message(
                 session_id=session.id,
@@ -112,10 +123,27 @@ class InMemoryConversationStore:
                 layer="",
                 citations=[],
             )
-        return session
+        return self.sessions[session.id]
 
     async def get_session(self, session_id: str) -> SessionRecord | None:
         return self.sessions.get(session_id)
+
+    async def list_sessions(
+        self,
+        school_email: str,
+        entry_path: str | None = None,
+    ) -> list[SessionRecord]:
+        matched = [
+            session
+            for session in self.sessions.values()
+            if session.school_email == school_email
+            and (entry_path is None or session.entry_path == entry_path)
+        ]
+        matched.sort(
+            key=lambda session: (self._activity.get(session.id, 0), session.updated_at),
+            reverse=True,
+        )
+        return matched
 
     async def list_messages(self, session_id: str) -> list[MessageRecord]:
         return list(self._messages.get(session_id, []))
@@ -151,7 +179,21 @@ class InMemoryConversationStore:
             created_at=datetime.now(UTC),
         )
         self._messages.setdefault(session_id, []).append(message)
+        self._touch(session_id)
         return message
+
+    def _touch(self, session_id: str) -> None:
+        current = self.sessions[session_id]
+        self._next_activity += 1
+        self._activity[session_id] = self._next_activity
+        self.sessions[session_id] = SessionRecord(
+            id=current.id,
+            school_email=current.school_email,
+            condition_id=current.condition_id,
+            entry_path=current.entry_path,
+            created_at=current.created_at,
+            updated_at=datetime.now(UTC),
+        )
 
 
 class PostgresConversationStore:
@@ -204,6 +246,7 @@ class PostgresConversationStore:
             condition_id=condition_id,
             entry_path=entry_path,
             created_at=now,
+            updated_at=now,
         )
 
     async def get_session(self, session_id: str) -> SessionRecord | None:
@@ -213,7 +256,7 @@ class PostgresConversationStore:
         async with self._pool.acquire() as connection:
             row = await connection.fetchrow(
                 """
-                select id, school_email, condition_id, entry_path, created_at
+                select id, school_email, condition_id, entry_path, created_at, updated_at
                 from rag.chat_sessions
                 where id = $1
                 """,
@@ -240,6 +283,35 @@ class PostgresConversationStore:
                 key,
             )
         return [_message_from_row(row) for row in rows]
+
+    async def list_sessions(
+        self,
+        school_email: str,
+        entry_path: str | None = None,
+    ) -> list[SessionRecord]:
+        async with self._pool.acquire() as connection:
+            if entry_path is None:
+                rows = await connection.fetch(
+                    """
+                    select id, school_email, condition_id, entry_path, created_at, updated_at
+                    from rag.chat_sessions
+                    where school_email = $1
+                    order by updated_at desc, created_at desc, id desc
+                    """,
+                    school_email,
+                )
+            else:
+                rows = await connection.fetch(
+                    """
+                    select id, school_email, condition_id, entry_path, created_at, updated_at
+                    from rag.chat_sessions
+                    where school_email = $1 and entry_path = $2
+                    order by updated_at desc, created_at desc, id desc
+                    """,
+                    school_email,
+                    entry_path,
+                )
+        return [_session_from_row(row) for row in rows]
 
     async def append_message(
         self,
@@ -345,13 +417,25 @@ def _as_datetime(value: object) -> datetime:
 
 
 def _session_from_row(row: asyncpg.Record | dict[str, object]) -> SessionRecord:
+    created_at = _as_datetime(row["created_at"])
+    updated_at = created_at
+    if _row_has(row, "updated_at") and row["updated_at"] is not None:
+        updated_at = _as_datetime(row["updated_at"])
     return SessionRecord(
         id=str(row["id"]),
         school_email=str(row["school_email"]),
         condition_id=str(row["condition_id"]),
         entry_path=str(row["entry_path"]),
-        created_at=_as_datetime(row["created_at"]),
+        created_at=created_at,
+        updated_at=updated_at,
     )
+
+
+def _row_has(row: asyncpg.Record | dict[str, object], key: str) -> bool:
+    try:
+        return key in row
+    except TypeError:
+        return False
 
 
 def _message_from_row(row: asyncpg.Record | dict[str, object]) -> MessageRecord:

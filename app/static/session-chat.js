@@ -12,10 +12,28 @@
     return;
   }
 
-  const storageKey = `unmc-chat:${entryPath}`;
+  const activeEmailKey = `unmc-chat:${entryPath}:active-email`;
   const openingNodes = [...messageList.childNodes].map((node) => node.cloneNode(true));
+  const emailDomain = (body.dataset.emailDomain || "").trim().toLowerCase().replace(/^@/, "");
   let sessionId = "";
   let sessionEmail = "";
+  let resumeToken = 0;
+  let pendingResume = Promise.resolve(false);
+
+  function normalizeEmail(value) {
+    return value.trim().toLowerCase();
+  }
+
+  function storageKeyFor(email) {
+    return `unmc-chat:${entryPath}:${normalizeEmail(email)}`;
+  }
+
+  function isSchoolEmail(value) {
+    const email = normalizeEmail(value);
+    const at = email.lastIndexOf("@");
+    if (at <= 0 || !emailDomain) return false;
+    return email.slice(at + 1) === emailDomain && email.slice(0, at).length > 0;
+  }
 
   function scrollTranscript() {
     messageList.scrollTop = messageList.scrollHeight;
@@ -105,39 +123,78 @@
   }
 
   function rememberSession() {
+    const email = sessionEmail || normalizeEmail(emailInput.value);
+    if (!email) return;
+    sessionStorage.setItem(activeEmailKey, email);
+    const key = storageKeyFor(email);
     if (!sessionId) {
-      sessionStorage.removeItem(storageKey);
+      sessionStorage.removeItem(key);
       return;
     }
-    sessionStorage.setItem(
-      storageKey,
-      JSON.stringify({ sessionId, email: sessionEmail || emailInput.value.trim() }),
-    );
+    sessionStorage.setItem(key, JSON.stringify({ sessionId, email }));
   }
 
-  async function restoreSession() {
-    let saved = null;
-    try {
-      saved = JSON.parse(sessionStorage.getItem(storageKey) || "null");
-    } catch {
-      saved = null;
-    }
-    if (!saved || !saved.sessionId) return;
-    if (saved.email) emailInput.value = saved.email;
+  async function loadTranscript(email, nextSessionId, token) {
     const response = await fetch(
-      `/api/v1/chat/${encodeURIComponent(entryPath)}/sessions/${encodeURIComponent(saved.sessionId)}`,
-      { headers: { "X-School-Email": emailInput.value.trim() } },
+      `/api/v1/chat/${encodeURIComponent(entryPath)}/sessions/${encodeURIComponent(nextSessionId)}`,
+      { headers: { "X-School-Email": email } },
     );
+    if (token !== resumeToken) return false;
     if (!response.ok) {
-      sessionStorage.removeItem(storageKey);
-      return;
+      sessionId = "";
+      sessionEmail = email;
+      resetToOpening();
+      sessionStorage.removeItem(storageKeyFor(email));
+      return true;
     }
     const payload = await response.json().catch(() => ({}));
-    sessionId = payload.session_id || saved.sessionId;
-    sessionEmail = emailInput.value.trim();
+    if (token !== resumeToken) return false;
+    sessionId = payload.session_id || nextSessionId;
+    sessionEmail = email;
     if (Array.isArray(payload.messages) && payload.messages.length) {
       renderTranscript(payload.messages);
+    } else {
+      resetToOpening();
     }
+    rememberSession();
+    return true;
+  }
+
+  async function resumeForEmail(rawEmail) {
+    const email = normalizeEmail(rawEmail);
+    const token = ++resumeToken;
+    if (!isSchoolEmail(email)) {
+      return false;
+    }
+    sessionStorage.setItem(activeEmailKey, email);
+    const response = await fetch(`/api/v1/chat/${encodeURIComponent(entryPath)}/sessions`, {
+      headers: { "X-School-Email": email },
+    });
+    if (token !== resumeToken) return false;
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showError(detailMessage(payload.detail));
+      return false;
+    }
+    clearError();
+    const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+    const latest = sessions[0];
+    if (!latest || !latest.session_id) {
+      sessionId = "";
+      sessionEmail = email;
+      resetToOpening();
+      sessionStorage.removeItem(storageKeyFor(email));
+      return true;
+    }
+    return loadTranscript(email, latest.session_id, token);
+  }
+
+  function scheduleResume(rawEmail) {
+    submitBtn.disabled = true;
+    pendingResume = resumeForEmail(rawEmail).finally(() => {
+      submitBtn.disabled = false;
+    });
+    return pendingResume;
   }
 
   questionInput.addEventListener("keydown", (event) => {
@@ -151,14 +208,18 @@
     event.preventDefault();
     clearError();
 
-    const email = emailInput.value.trim();
+    const email = normalizeEmail(emailInput.value);
     const message = questionInput.value.trim();
     if (!message) return;
+    if (!isSchoolEmail(email)) {
+      showError("Use a valid school email address.");
+      return;
+    }
 
-    if (sessionId && sessionEmail && sessionEmail !== email) {
-      sessionId = "";
-      sessionEmail = "";
-      resetToOpening();
+    await pendingResume;
+    if (sessionEmail !== email) {
+      const ready = await scheduleResume(email);
+      if (!ready) return;
     }
 
     const userBubble = appendBubble("user", message);
@@ -185,7 +246,7 @@
         pending.remove();
         if (response.status === 404) {
           sessionId = "";
-          sessionEmail = "";
+          sessionEmail = email;
           rememberSession();
         }
         showError(detailMessage(payload.detail));
@@ -214,7 +275,17 @@
     }
   });
 
-  restoreSession().catch(() => {
-    sessionStorage.removeItem(storageKey);
+  emailInput.addEventListener("change", () => {
+    scheduleResume(emailInput.value).catch(() => {
+      showError("I couldn’t look up that conversation. Please try again.");
+    });
+  });
+
+  const savedEmail = sessionStorage.getItem(activeEmailKey);
+  if (savedEmail && isSchoolEmail(savedEmail)) {
+    emailInput.value = savedEmail;
+  }
+  scheduleResume(emailInput.value).catch(() => {
+    showError("I couldn’t look up that conversation. Please try again.");
   });
 })();

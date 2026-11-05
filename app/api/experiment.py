@@ -1,6 +1,7 @@
 """Multi-turn study chat. Condition ids stay on the server."""
 
 import asyncio
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -57,6 +58,16 @@ class TranscriptMessage(BaseModel):
 class TranscriptResponse(BaseModel):
     session_id: str
     messages: list[TranscriptMessage]
+
+
+class SessionSummary(BaseModel):
+    session_id: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SessionListResponse(BaseModel):
+    sessions: list[SessionSummary]
 
 
 def clip_dialogue(history: list[DialogueTurn], limit: int) -> list[DialogueTurn]:
@@ -139,6 +150,27 @@ def create_experiment_router(
             layer=result.layer,
             answer=answer,
             citations=[ExperimentCitation(**item) for item in citations],
+        )
+
+    @router.get("/chat/{entry_path}/sessions", response_model=SessionListResponse)
+    async def list_sessions(
+        entry_path: str,
+        request: Request,
+        school_email: Annotated[str | None, Header(alias="X-School-Email")] = None,
+    ) -> SessionListResponse:
+        condition = _require_condition(entry_path)
+        email = _require_email(school_email_policy, school_email)
+        store = resolve_conversation_store(request)
+        sessions = await store.list_sessions(email, condition.entry_path)
+        return SessionListResponse(
+            sessions=[
+                SessionSummary(
+                    session_id=session.id,
+                    created_at=session.created_at,
+                    updated_at=session.updated_at,
+                )
+                for session in sessions
+            ]
         )
 
     @router.get(

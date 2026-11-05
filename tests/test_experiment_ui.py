@@ -47,6 +47,8 @@ def test_session_script_does_not_list_conditions() -> None:
     assert response.status_code == 200
     script = response.text
     assert "/api/v1/chat/" in script
+    assert "/sessions" in script
+    assert "active-email" in script
     assert "sessionStorage" in script
     assert "X-School-Email" in script
     for token in (*PATHS, "LL", "LH", "HL", "HH", "competence", "warmth"):

@@ -64,6 +64,22 @@ class FakePool:
         return _Context(self.conn)
 
 
+def test_postgres_list_sessions_filters_email_and_path_newest_first() -> None:
+    async def scenario() -> None:
+        pool = FakePool()
+        store = PostgresConversationStore(pool)  # type: ignore[arg-type]
+        await store.list_sessions("ada@unmc.edu", "k7q2")
+        kind, sql, args = pool.conn.executed[-1]
+        assert kind == "fetch"
+        assert "from rag.chat_sessions" in sql
+        assert "school_email = $1" in sql
+        assert "entry_path = $2" in sql
+        assert "order by updated_at desc" in sql
+        assert args == ("ada@unmc.edu", "k7q2")
+
+    asyncio.run(scenario())
+
+
 def test_postgres_writes_include_email_condition_and_path() -> None:
     async def scenario() -> None:
         pool = FakePool()
