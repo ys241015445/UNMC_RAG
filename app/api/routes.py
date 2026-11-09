@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.api.experiment import create_experiment_router
 from app.auth.policy import SchoolEmailPolicy
 from app.rag.service import ChatService
 
@@ -60,4 +61,5 @@ def create_api_router(
             ],
         )
 
+    router.include_router(create_experiment_router(chat_service, school_email_policy))
     return router

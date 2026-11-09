@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Study links · {{ app_name }}</title>
+  <link rel="stylesheet" href="/static/chat.css" />
+</head>
+<body>
+  <div class="page prompt-editor">
+    <header class="hero">
+      <p class="brand">{{ app_name }}</p>
+      <h1>Study links</h1>
+      <p class="lede">
+        Slide a switch to the right to turn that link on, and to the left to turn it off.
+        This page is not part of the participant chat.
+      </p>
+    </header>
+
+    {% if notice %}
+    <p class="prompt-notice" role="status">{{ notice }}</p>
+    {% endif %}
+    {% if error %}
+    <p class="error" role="alert">{{ error }}</p>
+    {% endif %}
+    <p id="switch-error" class="error" hidden></p>
+
+    <ul class="switch-list">
+      {% for row in rows %}
+      <li class="switch-row" id="row-{{ row.entry_path }}">
+        <div>
+          <p class="switch-path">/{{ row.entry_path }}</p>
+          <p class="switch-state" id="state-{{ row.entry_path }}">{% if row.enabled %}On{% else %}Off{% endif %}</p>
+        </div>
+        <button
+          type="button"
+          class="ios-switch{% if row.enabled %} is-on{% endif %}"
+          role="switch"
+          aria-checked="{% if row.enabled %}true{% else %}false{% endif %}"
+          aria-label="/{{ row.entry_path }}"
+          data-switch="{{ row.entry_path }}"
+        >
+          <span class="ios-switch-knob"></span>
+        </button>
+      </li>
+      <li class="prompt-fold-row">
+        <details class="prompt-fold">
+          <summary>Edit prompt text</summary>
+          <form class="ask-form" method="post" action="/prompts/{{ row.entry_path }}">
+            <label>
+              Prompt
+              <textarea name="prompt" rows="8" maxlength="12000">{{ row.prompt }}</textarea>
+            </label>
+            <p class="prompt-state">{% if row.customized %}Saved prompt{% else %}Built-in prompt{% endif %}</p>
+            <div class="prompt-actions">
+              <button type="submit">Save</button>
+              <button
+                type="submit"
+                class="button-secondary"
+                formaction="/prompts/{{ row.entry_path }}/reset"
+              >Restore default</button>
+            </div>
+          </form>
+        </details>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <script src="/static/prompt-switches.js" defer></script>
+</body>
+</html>
