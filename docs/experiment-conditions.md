@@ -25,11 +25,15 @@ Each path serves a multi-turn chat: a transcript, school-email field, and a comp
 
 The browser never receives `condition_id`. Refusal codes are stored in the database; the bubble shows the persona's refusal sentence from `refusals` in the JSON file.
 
-## Editing personas
+## Turning links on and off
 
-While the app is running, open <http://localhost:8000/prompts>. That page lists the four paths and the full system prompt each one sends to the model. Save replaces that path's prompt for later chats. Restore default clears the edit and uses the built-in text again. The page is not linked from the participant chat.
+Open <http://localhost:8000/prompts> (the same page is also at `/prompts/`). No sign-in is required. The page is not linked from the participant chat.
 
-Edits are written to `data/experiment/prompt_overrides.json` (or `UNMC_RAG_EXPERIMENT_PROMPT_OVERRIDES_PATH`). The file is local, so the custom text survives a process restart without Postgres. A new container does not keep it unless that path is on a persistent volume. [`app/experiment/conditions.json`](../app/experiment/conditions.json) stays the built-in copy and is not overwritten.
+Each path has an iOS-style switch. Slide it to the right to turn that link on, and to the left to turn it off. All four start on. The choice is saved in `data/experiment/prompt_switches.json`, next to any prompt-text edits, and survives a process restart without Postgres. A new container keeps the file only if that directory is on a persistent volume.
+
+A link that is off does not run its assistant. The URL shows a short unavailable notice, and the chat API refuses the turn. Turn the switch back on and the same link works again, including a saved custom prompt if there is one.
+
+Prompt wording is still editable under “Edit prompt text” on that page. Those edits stay in `data/experiment/prompt_overrides.json` (or `UNMC_RAG_EXPERIMENT_PROMPT_OVERRIDES_PATH`). [`app/experiment/conditions.json`](../app/experiment/conditions.json) stays the built-in copy and is not overwritten.
 
 You can still edit the built-in file directly:
 

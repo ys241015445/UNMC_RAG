@@ -11,6 +11,7 @@ __pycache__/
 .coverage
 htmlcov/
 data/experiment/prompt_overrides.json
+data/experiment/prompt_switches.json
 data/uploads/*
 !data/uploads/.gitkeep
 data/scraped/*

@@ -8,6 +8,7 @@ from app.experiment.overrides import (
     overrides_path,
     reset_override,
 )
+from app.experiment.switches import is_path_enabled, switches_path
 from app.main import app
 from tests.test_experiment_api import EMAIL_HEADER, ChunkRetriever, RecordingGenerator, _client
 
@@ -21,13 +22,22 @@ def _clear_overrides() -> None:
         path.unlink()
 
 
+def _clear_switches() -> None:
+    path = switches_path()
+    if path.exists():
+        path.unlink()
+
+
 def test_editor_lists_four_builtin_prompts() -> None:
     _clear_overrides()
+    _clear_switches()
     response = TestClient(app).get("/prompts")
 
     assert response.status_code == 200
     html = response.text
     assert html.count('name="prompt"') == 4
+    assert html.count('role="switch"') == 4
+    assert "Slide a switch to the right" in html
     assert "Built-in prompt" in html
     assert "Saved prompt" not in html
     for path, marker in (
@@ -46,6 +56,7 @@ def test_editor_lists_four_builtin_prompts() -> None:
 
 def test_saved_prompt_is_used_on_that_path_and_restore_returns_the_default() -> None:
     _clear_overrides()
+    _clear_switches()
     catalog = get_condition_catalog()
     try:
         page = TestClient(app)
@@ -111,6 +122,66 @@ def test_unreadable_override_file_falls_back_to_the_builtin_prompt() -> None:
         assert effective_system_prompt(condition) == condition.system_prompt
     finally:
         _clear_overrides()
+
+
+def test_prompts_page_opens_without_sign_in() -> None:
+    _clear_switches()
+    client = TestClient(app)
+    assert client.get("/prompts").status_code == 200
+    trailed = client.get("/prompts/")
+    assert trailed.status_code == 200
+    assert 'role="switch"' in trailed.text
+
+
+def test_switch_off_stops_only_that_path() -> None:
+    _clear_overrides()
+    _clear_switches()
+    try:
+        page = TestClient(app)
+        turned_off = page.post("/prompts/m3x9/enabled", json={"enabled": False})
+        assert turned_off.status_code == 200
+        assert turned_off.json() == {"entry_path": "m3x9", "enabled": False}
+        assert is_path_enabled("m3x9") is False
+        assert is_path_enabled("k7q2") is True
+
+        blocked_page = page.get("/m3x9")
+        assert blocked_page.status_code == 200
+        assert "This assistant is unavailable" in blocked_page.text
+        assert "chat-form" not in blocked_page.text
+        assert "/prompts" not in blocked_page.text
+        assert "chat-form" in page.get("/k7q2").text
+
+        controls = page.get("/prompts")
+        assert 'data-switch="m3x9"' in controls.text
+        assert 'aria-checked="false"' in controls.text
+        assert 'aria-checked="true"' in controls.text
+
+        store = InMemoryConversationStore()
+        generator = RecordingGenerator()
+        chat = _client(store, generator, ChunkRetriever())
+        refused = chat.post(
+            "/api/v1/chat/m3x9/messages",
+            json={"message": "When is the graduation ceremony?"},
+            headers=EMAIL_HEADER,
+        )
+        assert refused.status_code == 403
+        assert refused.json()["detail"] == "This assistant is unavailable"
+        assert generator.calls == []
+        assert store.sessions == {}
+
+        allowed = chat.post(
+            "/api/v1/chat/k7q2/messages",
+            json={"message": "When is the graduation ceremony?"},
+            headers=EMAIL_HEADER,
+        )
+        assert allowed.status_code == 200
+        assert generator.calls
+
+        page.post("/prompts/m3x9/enabled", json={"enabled": True})
+        assert "chat-form" in page.get("/m3x9").text
+        assert is_path_enabled("m3x9") is True
+    finally:
+        _clear_switches()
 
 
 def test_reset_is_safe_when_the_path_was_never_customized() -> None:

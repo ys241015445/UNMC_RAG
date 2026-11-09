@@ -2,7 +2,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.experiment.catalog import REQUIRED_ENTRY_PATHS, get_condition_catalog
@@ -12,6 +12,7 @@ from app.experiment.overrides import (
     reset_override,
     save_override,
 )
+from app.experiment.switches import is_path_enabled, set_path_enabled
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -19,6 +20,24 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 def create_ui_router(*, app_name: str, school_email_domain: str) -> APIRouter:
     router = APIRouter()
+
+    @router.get("/prompts", response_class=HTMLResponse, include_in_schema=False)
+    @router.get("/prompts/", response_class=HTMLResponse, include_in_schema=False)
+    def prompt_editor(request: Request) -> HTMLResponse:
+        return _render_prompt_editor(request, app_name=app_name)
+
+    @router.post("/prompts/{entry_path}/enabled", include_in_schema=False, response_model=None)
+    async def set_prompt_enabled(
+        entry_path: str,
+        request: Request,
+    ) -> JSONResponse | RedirectResponse:
+        if entry_path not in REQUIRED_ENTRY_PATHS:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        enabled = await _enabled_from_request(request)
+        set_path_enabled(entry_path, enabled)
+        if _wants_json(request):
+            return JSONResponse({"entry_path": entry_path, "enabled": enabled})
+        return RedirectResponse("/prompts", status_code=status.HTTP_303_SEE_OTHER)
 
     @router.get("/", response_class=HTMLResponse)
     def chat_page(request: Request) -> HTMLResponse:
@@ -36,6 +55,13 @@ def create_ui_router(*, app_name: str, school_email_domain: str) -> APIRouter:
             condition = get_condition_catalog().get(entry_path)
             if condition is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+            if not is_path_enabled(condition.entry_path):
+                return templates.TemplateResponse(
+                    request,
+                    "session_unavailable.html",
+                    {"app_name": app_name},
+                    headers={"Cache-Control": "no-store"},
+                )
             return templates.TemplateResponse(
                 request,
                 "session_chat.html",
@@ -59,10 +85,6 @@ def create_ui_router(*, app_name: str, school_email_domain: str) -> APIRouter:
             response_class=HTMLResponse,
             include_in_schema=False,
         )
-
-    @router.get("/prompts", response_class=HTMLResponse, include_in_schema=False)
-    def prompt_editor(request: Request) -> HTMLResponse:
-        return _render_prompt_editor(request, app_name=app_name)
 
     @router.post("/prompts/{entry_path}", include_in_schema=False, response_model=None)
     async def save_prompt(entry_path: str, request: Request) -> HTMLResponse | RedirectResponse:
@@ -119,6 +141,7 @@ def _render_prompt_editor(
                 "entry_path": condition.entry_path,
                 "prompt": prompt,
                 "customized": prompt.strip() != default_prompt.strip(),
+                "enabled": is_path_enabled(condition.entry_path),
             }
         )
     notice = _prompt_notice(request)
@@ -134,6 +157,25 @@ def _render_prompt_editor(
         status_code=status_code,
         headers={"Cache-Control": "no-store"},
     )
+
+
+async def _enabled_from_request(request: Request) -> bool:
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        payload = await request.json()
+        if not isinstance(payload, dict) or "enabled" not in payload:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="enabled is required",
+            )
+        return bool(payload["enabled"])
+    form = parse_qs((await request.body()).decode("utf-8", errors="replace"))
+    raw = form.get("enabled", ["0"])[-1].strip().casefold()
+    return raw in {"1", "true", "on", "yes"}
+
+
+def _wants_json(request: Request) -> bool:
+    return "application/json" in request.headers.get("content-type", "")
 
 
 def _prompt_notice(request: Request) -> str:

@@ -304,7 +304,84 @@ body {
 }
 
 .prompt-editor {
-  width: min(880px, calc(100% - 2rem));
+  width: min(720px, calc(100% - 2rem));
+}
+
+.switch-list {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.switch-path {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  color: var(--accent-deep);
+}
+
+.ios-switch {
+  position: relative;
+  width: 51px;
+  height: 31px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 31px;
+  padding: 0;
+  background: #e5e5ea;
+  cursor: pointer;
+  touch-action: none;
+  transition: background 180ms ease;
+}
+
+.ios-switch.is-on {
+  background: #1f6f5b;
+}
+
+.ios-switch:focus-visible {
+  outline: 2px solid rgba(31, 111, 91, 0.45);
+  outline-offset: 3px;
+}
+
+.ios-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(19, 38, 31, 0.18), 0 1px 1px rgba(19, 38, 31, 0.12);
+  transition: transform 180ms ease;
+}
+
+.ios-switch.is-on .ios-switch-knob {
+  transform: translateX(20px);
+}
+
+.prompt-fold-row {
+  list-style: none;
+  padding: 0 0 0.85rem;
+}
+
+.prompt-fold summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.prompt-fold .ask-form {
+  border-top: 0;
+  padding-top: 0.85rem;
 }
 
 .prompt-notice {

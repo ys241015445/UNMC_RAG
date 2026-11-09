@@ -17,6 +17,7 @@ from app.conversations.store import (
 )
 from app.experiment.catalog import ExperimentCondition, get_condition_catalog
 from app.experiment.overrides import effective_system_prompt
+from app.experiment.switches import is_path_enabled
 from app.rag.contracts import DialogueTurn
 from app.rag.service import ChatService
 
@@ -91,6 +92,7 @@ def create_experiment_router(
         school_email: Annotated[str | None, Header(alias="X-School-Email")] = None,
     ) -> ExperimentChatResponse:
         condition = _require_condition(entry_path)
+        _require_enabled(condition.entry_path)
         email = _require_email(school_email_policy, school_email)
         store = resolve_conversation_store(request)
         session = await _session_for_turn(
@@ -160,6 +162,7 @@ def create_experiment_router(
         school_email: Annotated[str | None, Header(alias="X-School-Email")] = None,
     ) -> SessionListResponse:
         condition = _require_condition(entry_path)
+        _require_enabled(condition.entry_path)
         email = _require_email(school_email_policy, school_email)
         store = resolve_conversation_store(request)
         sessions = await store.list_sessions(email, condition.entry_path)
@@ -185,6 +188,7 @@ def create_experiment_router(
         school_email: Annotated[str | None, Header(alias="X-School-Email")] = None,
     ) -> TranscriptResponse:
         condition = _require_condition(entry_path)
+        _require_enabled(condition.entry_path)
         email = _require_email(school_email_policy, school_email)
         store = resolve_conversation_store(request)
         session = await store.get_session(_canonical_session_id(session_id))
@@ -217,6 +221,14 @@ def _require_condition(entry_path: str) -> ExperimentCondition:
     if condition is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return condition
+
+
+def _require_enabled(entry_path: str) -> None:
+    if not is_path_enabled(entry_path):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This assistant is unavailable",
+        )
 
 
 def _require_email(policy: SchoolEmailPolicy, school_email: str | None) -> str:
