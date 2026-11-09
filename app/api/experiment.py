@@ -16,6 +16,7 @@ from app.conversations.store import (
     resolve_conversation_store,
 )
 from app.experiment.catalog import ExperimentCondition, get_condition_catalog
+from app.experiment.overrides import effective_system_prompt
 from app.rag.contracts import DialogueTurn
 from app.rag.service import ChatService
 
@@ -118,7 +119,7 @@ def create_experiment_router(
             chat_service.answer_in_context,
             payload.message,
             history=history,
-            system_prompt=condition.system_prompt,
+            system_prompt=effective_system_prompt(condition),
             temperature=condition.temperature,
             max_tokens=condition.max_tokens,
         )

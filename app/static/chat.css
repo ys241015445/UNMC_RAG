@@ -303,6 +303,58 @@ body {
   color: var(--danger);
 }
 
+.prompt-editor {
+  width: min(880px, calc(100% - 2rem));
+}
+
+.prompt-notice {
+  margin: 0 0 0.5rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: 12px;
+  background: #d9ebe3;
+  color: var(--accent-deep);
+}
+
+.prompt-card {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.prompt-card h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  color: var(--accent-deep);
+}
+
+.prompt-state {
+  margin: 0.3rem 0 0.85rem;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.prompt-card textarea {
+  min-height: 16rem;
+}
+
+.prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.prompt-actions .button-secondary {
+  background: transparent;
+  color: var(--accent-deep);
+  border: 1px solid rgba(31, 111, 91, 0.35);
+}
+
+.prompt-actions .button-secondary:hover {
+  background: rgba(217, 235, 227, 0.9);
+}
+
 .chat-app {
   min-height: 100vh;
 }

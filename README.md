@@ -261,6 +261,7 @@ retriever (insufficient evidence).
 | `UNMC_RAG_RETRIEVAL_TOP_K` | Max chunks returned |
 | `UNMC_RAG_EXPERIMENT_HISTORY_MESSAGES` | Prior study-chat messages sent to the model (default 16) |
 | `UNMC_RAG_EXPERIMENT_CONDITIONS_PATH` | Optional override for `app/experiment/conditions.json` |
+| `UNMC_RAG_EXPERIMENT_PROMPT_OVERRIDES_PATH` | Saved prompt edits from `/prompts` (default `data/experiment/prompt_overrides.json`) |
 
 ---
 

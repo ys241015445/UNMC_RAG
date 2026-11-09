@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     experiment_history_messages: int = 16
     # Optional override for app/experiment/conditions.json.
     experiment_conditions_path: str = ""
+    # Saved prompt edits. Empty uses data/experiment/prompt_overrides.json.
+    experiment_prompt_overrides_path: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

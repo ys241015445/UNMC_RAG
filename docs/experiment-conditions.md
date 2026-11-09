@@ -27,7 +27,11 @@ The browser never receives `condition_id`. Refusal codes are stored in the datab
 
 ## Editing personas
 
-Edit [`app/experiment/conditions.json`](../app/experiment/conditions.json):
+While the app is running, open <http://localhost:8000/prompts>. That page lists the four paths and the full system prompt each one sends to the model. Save replaces that path's prompt for later chats. Restore default clears the edit and uses the built-in text again. The page is not linked from the participant chat.
+
+Edits are written to `data/experiment/prompt_overrides.json` (or `UNMC_RAG_EXPERIMENT_PROMPT_OVERRIDES_PATH`). The file is local, so the custom text survives a process restart without Postgres. A new container does not keep it unless that path is on a persistent volume. [`app/experiment/conditions.json`](../app/experiment/conditions.json) stays the built-in copy and is not overwritten.
+
+You can still edit the built-in file directly:
 
 - `persona` — system-side voice. Not rendered in the page.
 - `shared_rules` — appended to every persona. Keeps answers tied to the `[Evidence]` block.

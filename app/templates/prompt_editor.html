@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prompts · {{ app_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/chat.css" />
+</head>
+<body>
+  <div class="page prompt-editor">
+    <header class="hero">
+      <p class="brand">{{ app_name }}</p>
+      <h1>Assistant prompts</h1>
+      <p class="lede">
+        Each link has one instruction sent with its chats. Edit a prompt and save it.
+        Restore default brings back the built-in text. This page is not part of the participant chat.
+      </p>
+    </header>
+
+    {% if notice %}
+    <p class="prompt-notice" role="status">{{ notice }}</p>
+    {% endif %}
+    {% if error %}
+    <p class="error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    {% for row in rows %}
+    <section class="prompt-card" id="prompt-{{ row.entry_path }}">
+      <h2>/{{ row.entry_path }}</h2>
+      <p class="prompt-state">
+        {% if row.customized %}Saved prompt{% else %}Built-in prompt{% endif %}
+      </p>
+      <form class="ask-form" method="post" action="/prompts/{{ row.entry_path }}">
+        <label>
+          Prompt
+          <textarea name="prompt" rows="14" maxlength="12000">{{ row.prompt }}</textarea>
+        </label>
+        <div class="prompt-actions">
+          <button type="submit">Save</button>
+          <button
+            type="submit"
+            class="button-secondary"
+            formaction="/prompts/{{ row.entry_path }}/reset"
+          >Restore default</button>
+        </div>
+      </form>
+    </section>
+    {% endfor %}
+  </div>
+</body>
+</html>

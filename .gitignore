@@ -10,6 +10,7 @@ __pycache__/
 *.egg-info/
 .coverage
 htmlcov/
+data/experiment/prompt_overrides.json
 data/uploads/*
 !data/uploads/.gitkeep
 data/scraped/*
