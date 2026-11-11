@@ -1,0 +1,12 @@
+# Local-only: build the all-in-one app image and publish port 8080.
+# Coolify must not load this file.
+#   docker compose -f compose.yaml -f compose.local.yaml up --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${APP_IMAGE:-unmc-rag:local}
+    ports:
+      - "8080:80"
