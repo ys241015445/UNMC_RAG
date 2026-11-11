@@ -134,7 +134,7 @@ Prepare `.env` (set `DATABASE_URL` from Supabase Session pooler, and `LLM_API_KE
 cp .env.example .env
 # Edit .env: DATABASE_URL, LLM_API_KEY
 
-docker compose -f compose.yaml -f compose.local.yaml up -d --build
+docker compose -f docker-compose.yaml -f compose.local.yaml up -d --build
 docker compose ps
 curl -s http://localhost:8080/health
 curl -s http://localhost:8080/ready
@@ -176,21 +176,21 @@ docker login "$TCR_REGISTRY"          # 用户名为腾讯云账号 ID，密码�
 make docker-push TCR_NAMESPACE="$TCR_NAMESPACE"
 ```
 
-The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest`. Put that value in `APP_IMAGE`.
+The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest`. That is only for a **registry pull** Coolify resource. GitHub App builds must not set `APP_IMAGE`.
 
-### Coolify
+### Coolify (GitHub App)
 
-Coolify builds the single `app` image from this repo (nginx + FastAPI). Postgres stays on Supabase.
+One GitHub repo → one Coolify resource → one container. nginx on **:80** serves the static chat page and proxies `/api`, `/health`, `/ready`, and the study paths (`/k7q2`, `/m3x9`, `/p8d4`, `/t5w1`) to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
 
-1. Push Git, including `data/scraped/current_students/documents.jsonl`.
-2. New Resource → **Docker Compose**. Compose file: `compose.yaml` (not `compose.local.yaml`).
-3. Paste environment variables from local `.env.coolify` (or [`.env.coolify.example`](./.env.coolify.example)). Required:
-   - `DATABASE_URL` — Supabase Session pooler URI already in `.env` / `.env.coolify`
-   - `LLM_API_KEY`
-4. Assign the public domain to **app**, container port **80**.
-5. Deploy. Check `https://<your-domain>/health` and `/ready` (`database` should be `up`).
+1. Resource type **Docker Compose**, branch **unmc_exp**.
+2. Compose file **`docker-compose.yaml`**. Never select `compose.local.yaml`. `compose.yaml` is the same stack if a resource is already pointed at that name.
+3. **Do not set `APP_IMAGE`.**
+4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`, and `UNMC_RAG_DATA_ENCRYPTION_KEY` (participant emails and transcripts are stored encrypted).
+5. Domain → service **app**, container port **80**.
+6. Docker / Coolify healthchecks stay off (they were marking the stack unhealthy during startup).
+7. Redeploy. Open `/health`, then `/` and one study path.
 
-Optional: build/push to Tencent Cloud TCR (`make docker-push`) and set `APP_IMAGE` if you prefer pulling a registry image instead of building on the Coolify host.
+If the container is **Exited**, read **app** logs. Startup prints `[unmc-rag] starting uvicorn` / `starting nginx`.
 
 ### Tests
 
@@ -248,7 +248,7 @@ retriever (insufficient evidence).
 
 | Variable | Description |
 |----------|-------------|
-| `APP_IMAGE` | All-in-one app image tag. Local: `unmc-rag:local`. Coolify: TCR URL such as `ccr.ccs.tencentyun.com/<ns>/unmc-rag:latest` |
+| `APP_IMAGE` | Local / `make docker-push` tag only. **Unset** on GitHub App Coolify |
 | `DATABASE_URL` | Supabase Session pooler URI (`postgresql+asyncpg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`) |
 | `LLM_API_BASE` | External model API base (Zhipu default `https://open.bigmodel.cn/api/paas/v4/`) |
 | `LLM_API_KEY` | API key (local `.env` only; never commit) |
@@ -277,11 +277,12 @@ app/web/          # Jinja UI routes (local uvicorn)
 frontend/         # static chat page copied into the app image
 tests/            # pytest
 docs/             # PRD, architecture
-deploy/           # nginx, supervisord
-supabase/         # Postgres migrations (pgvector + rag schema)
-compose.yaml      # Coolify: build app image; DB is Supabase
-compose.local.yaml
-Dockerfile        # nginx + FastAPI all-in-one
+deploy/              # nginx + container entrypoint
+supabase/            # Postgres migrations (pgvector + rag schema)
+docker-compose.yaml  # Coolify GitHub App
+compose.yaml         # same stack, alternate filename
+compose.local.yaml   # local 8080:80 only
+Dockerfile           # nginx + FastAPI all-in-one
 ```
 
 See [docs/architecture.md](./docs/architecture.md) for the full picture.

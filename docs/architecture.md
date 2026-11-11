@@ -143,7 +143,7 @@ UNMC_RAG/
 │   ├── PRD.md
 │   └── architecture.md
 ├── supabase/migrations/        # pgvector + rag schema on Supabase
-├── compose.yaml
+├── docker-compose.yaml       # Coolify GitHub App
 ├── Dockerfile
 ├── pyproject.toml
 └── README.md

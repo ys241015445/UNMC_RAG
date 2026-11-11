@@ -1,10 +1,12 @@
-# All-in-one image for Coolify: nginx :80 + FastAPI on 127.0.0.1:8000.
-# Secrets (DATABASE_URL, LLM_API_KEY) come from Coolify env — never COPY .env.
+# Coolify GitHub App: one image, one public port.
+# nginx :80 (UI + /api /health /ready + study paths) → FastAPI 127.0.0.1:8000
+# Secrets come from Coolify env. Never COPY .env.
 
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin" \
     UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl
 
 WORKDIR /app
@@ -12,10 +14,9 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         nginx \
-        supervisor \
         gettext-base \
     && rm -rf /var/lib/apt/lists/* \
-    && rm -f /etc/nginx/sites-enabled/default
+    && rm -f /etc/nginx/sites-enabled/default /etc/nginx/nginx.conf
 
 COPY pyproject.toml README.md ./
 COPY app ./app
@@ -25,15 +26,12 @@ COPY data/scraped/current_students/documents.jsonl \
      /app/data/scraped/current_students/documents.jsonl
 COPY frontend/index.html /var/www/html/index.html.template
 COPY app/static /var/www/html/static
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
-COPY deploy/supervisord.conf /etc/supervisor/conf.d/unmc-rag.conf
+COPY deploy/nginx.conf /etc/nginx/nginx.conf
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
 
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh \
+    && nginx -t
 
 EXPOSE 80
-
-HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=5 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1/health')"
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
