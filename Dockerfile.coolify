@@ -1,6 +1,6 @@
 # Coolify GitHub App build (docker-compose.yaml → this file).
-# One image, public port 80. nginx serves the chat page and proxies
-# /api, /health, /ready, /setting, and the study paths to FastAPI on 127.0.0.1:8000.
+# One image, public port 80. nginx proxies /, /api, /health, /ready, /setting,
+# and the study paths to FastAPI on 127.0.0.1:8000.
 # Secrets come from Coolify environment variables (.env.coolify.example). Never COPY .env.
 
 FROM python:3.12-slim

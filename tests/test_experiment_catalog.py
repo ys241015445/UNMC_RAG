@@ -50,6 +50,9 @@ def test_nginx_proxies_each_study_path() -> None:
     nginx = Path("deploy/nginx.conf").read_text(encoding="utf-8")
     for path in DOCUMENTED_MAPPING:
         assert path in nginx
+    assert "try_files $uri $uri/ /index.html;" not in nginx
+    home = nginx.split("location / {", 1)[1].split("}", 1)[0]
+    assert "proxy_pass http://127.0.0.1:8000;" in home
 
 
 def test_clip_dialogue_keeps_the_newest_turns() -> None:

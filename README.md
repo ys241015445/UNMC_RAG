@@ -180,7 +180,7 @@ The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest
 
 ### Coolify (GitHub App)
 
-One GitHub repo → one Coolify resource → one container. nginx on **:80** serves the static chat page and proxies `/api`, `/health`, `/ready`, `/setting`, and the study paths (`/k7q2`, `/m3x9`, `/p8d4`, `/t5w1`) to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
+One GitHub repo → one Coolify resource → one container. nginx on **:80** proxies `/`, `/api`, `/health`, `/ready`, `/setting`, and the study paths (`/k7q2`, `/m3x9`, `/p8d4`, `/t5w1`) to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
 
 1. Resource type **Docker Compose**, branch **main**.
 2. Compose file **`docker-compose.yaml`**. It builds **`Dockerfile.coolify`** (nginx + FastAPI, both corpora). Never select `compose.local.yaml`. `compose.yaml` is the same stack if a resource is already pointed at that name.
