@@ -116,3 +116,28 @@ def test_build_retriever_loads_jsonl(tmp_path: Path) -> None:
     hits = retriever.search("graduation ceremonies campus")
     assert hits
     assert hits[0].source_id == "g1"
+
+
+def test_build_retriever_loads_comma_separated_corpora(tmp_path: Path) -> None:
+    students = tmp_path / "students.jsonl"
+    handbooks = tmp_path / "nfp.jsonl"
+    students.write_text(
+        '{"id":"g1","title":"Graduation","url":"https://example.edu/g",'
+        '"text":"Graduation ceremonies are held twice a year on campus."}\n',
+        encoding="utf-8",
+    )
+    handbooks.write_text(
+        '{"id":"nfp1","title":"NFP Progression Rules","url":"nfp.pdf",'
+        '"text":"NFP progression requires a pass mark of 40 in each module."}\n',
+        encoding="utf-8",
+    )
+    settings = Settings(
+        corpus_path=f"{students},{handbooks}",
+        chunk_size=200,
+        chunk_overlap=20,
+    )
+    retriever = build_retriever(settings)
+    assert isinstance(retriever, LocalKeywordRetriever)
+    hits = retriever.search("NFP progression pass mark module")
+    assert hits
+    assert hits[0].source_id == "nfp1"

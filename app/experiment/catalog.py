@@ -162,6 +162,76 @@ def get_condition_catalog() -> ConditionCatalog:
     return _cached_catalog(str(path.resolve()), mtime_ns)
 
 
+def save_condition_settings(
+    updates: dict[str, object],
+    path: Path | None = None,
+) -> ConditionCatalog:
+    """Write persona text and per-path RAG switches back to the catalog file."""
+
+    source = path or catalog_path()
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"Condition catalog cannot be read: {source}") from error
+    if not isinstance(payload, dict):
+        raise ValueError("Condition catalog must be a JSON object")
+
+    if "shared_rules" in updates:
+        payload["shared_rules"] = str(updates.get("shared_rules") or "")
+    if "shared_rules_without_rag" in updates:
+        payload["shared_rules_without_rag"] = str(updates.get("shared_rules_without_rag") or "")
+
+    raw_conditions = payload.get("conditions")
+    if not isinstance(raw_conditions, list):
+        raise ValueError("Condition catalog needs a conditions list")
+    by_path = {
+        str(item.get("entry_path") or "").strip(): item
+        for item in raw_conditions
+        if isinstance(item, dict)
+    }
+    incoming = updates.get("conditions")
+    if not isinstance(incoming, list) or not incoming:
+        raise ValueError("Settings need one entry for each study path")
+
+    seen: set[str] = set()
+    for item in incoming:
+        if not isinstance(item, dict):
+            raise ValueError("Each settings entry must be an object")
+        entry_path = str(item.get("entry_path") or "").strip()
+        target = by_path.get(entry_path)
+        if target is None:
+            raise ValueError(f"Unknown study path: {entry_path or '(blank)'}")
+        if entry_path in seen:
+            raise ValueError(f"Duplicate study path: {entry_path}")
+        seen.add(entry_path)
+        persona = str(item.get("persona") or "").strip()
+        if not persona:
+            raise ValueError(f"{entry_path} needs a persona prompt")
+        if "rag_enabled" not in item:
+            raise ValueError(f"{entry_path} needs a rag_enabled switch")
+        target["persona"] = persona
+        target["rag_enabled"] = _as_bool(
+            item.get("rag_enabled"),
+            label=f"{entry_path} rag_enabled",
+            fallback=False,
+        )
+
+    if seen != REQUIRED_ENTRY_PATHS:
+        missing = ", ".join(sorted(REQUIRED_ENTRY_PATHS - seen))
+        raise ValueError(f"Settings must include every study path: {missing}")
+
+    encoded = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    temporary = source.with_suffix(".json.tmp")
+    temporary.write_text(encoded, encoding="utf-8")
+    try:
+        catalog = load_condition_catalog(temporary)
+    except ValueError:
+        temporary.unlink(missing_ok=True)
+        raise
+    temporary.replace(source)
+    return catalog
+
+
 @lru_cache(maxsize=4)
 def _cached_catalog(path: str, mtime_ns: int) -> ConditionCatalog:
     del mtime_ns

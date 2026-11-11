@@ -4,7 +4,7 @@ from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from app.auth.policy import SchoolEmailPolicy
-from app.rag.conversation_store import ConversationStore
+from app.rag.conversation_store import ConversationStore, InMemoryChatHistory
 
 
 class SaveConversationRequest(BaseModel):
@@ -24,14 +24,15 @@ def create_conversations_router(school_email_policy: SchoolEmailPolicy) -> APIRo
                 detail="A valid school email identity is required in this prototype",
             ) from error
 
-    def store_for(request: Request) -> ConversationStore:
+    def store_for(request: Request) -> ConversationStore | InMemoryChatHistory:
         pool = getattr(request.app.state, "db_pool", None)
-        if pool is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Conversation storage is unavailable",
-            )
-        return ConversationStore(pool)
+        if pool is not None:
+            return ConversationStore(pool)
+        store = getattr(request.app.state, "chat_history_store", None)
+        if store is None:
+            store = InMemoryChatHistory()
+            request.app.state.chat_history_store = store
+        return store
 
     @router.get("")
     async def list_conversations(

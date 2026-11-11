@@ -1,0 +1,98 @@
+.settings-page {
+  width: min(880px, calc(100% - 2rem));
+}
+
+.settings-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow);
+  padding: 1.25rem 1.2rem 1.4rem;
+}
+
+.settings-card h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  color: var(--accent-deep);
+}
+
+.settings-card-head {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.8rem;
+}
+
+.settings-meta {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.settings-card label {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  font-weight: 600;
+}
+
+.settings-card textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  font: 400 0.95rem/1.45 var(--sans);
+  color: var(--ink);
+  background: #fff;
+  resize: vertical;
+}
+
+.rag-switch {
+  display: flex !important;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.2rem !important;
+  font-weight: 600;
+}
+
+.rag-switch input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1.4rem;
+  background: var(--accent);
+  color: #fff;
+  font: 600 1rem/1 var(--sans);
+  cursor: pointer;
+}
+
+.settings-actions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.settings-status {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.settings-status.is-error {
+  color: var(--danger);
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>条件配置 · {{ app_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/home.css" />
+  <link rel="stylesheet" href="/static/settings.css" />
+</head>
+<body>
+  <div class="page settings-page">
+    <header class="hero">
+      <p class="brand">{{ app_name }}</p>
+      <h1>实验条件</h1>
+      <p class="lede">
+        改每条路径的人设 prompt 和 RAG 开关。保存后下一轮对话就会用新配置。参与者页面不会出现这里的条件名。
+      </p>
+    </header>
+
+    <form id="settings-form" class="settings-form">
+      <section class="settings-card">
+        <h2>共用规则</h2>
+        <label>
+          检索开启时附加
+          <textarea id="shared-rules" name="shared_rules" rows="6">{{ shared_rules }}</textarea>
+        </label>
+        <label>
+          检索关闭时附加
+          <textarea id="shared-rules-off" name="shared_rules_without_rag" rows="6">{{ shared_rules_without_rag }}</textarea>
+        </label>
+      </section>
+
+      {% for condition in conditions %}
+      <section class="settings-card" data-entry-path="{{ condition.entry_path }}">
+        <div class="settings-card-head">
+          <h2>/{{ condition.entry_path }}</h2>
+          <p class="settings-meta">
+            {{ condition.condition_id }} · 能力 {{ condition.competence }} · 温暖 {{ condition.warmth }}
+            · temperature {{ condition.temperature }} · max_tokens {{ condition.max_tokens }}
+          </p>
+          <label class="rag-switch">
+            <input type="checkbox" class="rag-enabled" {% if condition.rag_enabled %}checked{% endif %} />
+            使用 RAG 检索
+          </label>
+        </div>
+        <label>
+          人设 prompt
+          <textarea class="persona" rows="16">{{ condition.persona }}</textarea>
+        </label>
+      </section>
+      {% endfor %}
+
+      <div class="settings-actions">
+        <p id="settings-status" class="settings-status" role="status"></p>
+        <button type="submit" id="save-btn">保存</button>
+      </div>
+    </form>
+  </div>
+  <script src="/static/settings.js" defer></script>
+</body>
+</html>

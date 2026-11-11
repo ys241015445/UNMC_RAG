@@ -7,6 +7,7 @@ through a keyed HMAC blind index so no plaintext address is ever queried.
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 from app.privacy.crypto import FieldCipher, get_field_cipher
@@ -33,6 +34,46 @@ def _sanitize_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             entry["citations"] = message["citations"][:10]
         cleaned.append(entry)
     return cleaned
+
+
+class InMemoryChatHistory:
+    """Process-local chat history used when Postgres is not connected."""
+
+    def __init__(self) -> None:
+        self._rows: dict[tuple[str, str], dict[str, Any]] = {}
+
+    async def list_conversations(self, email: str) -> list[dict[str, Any]]:
+        rows = [row for (owner, _), row in self._rows.items() if owner == email]
+        rows.sort(key=lambda row: row["updated_at"], reverse=True)
+        return [
+            {"id": row["id"], "title": row["title"], "updated_at": row["updated_at"]}
+            for row in rows[:50]
+        ]
+
+    async def load_conversation(self, email: str, conversation_id: str) -> dict[str, Any] | None:
+        row = self._rows.get((email, conversation_id))
+        if row is None:
+            return None
+        return {
+            "id": row["id"],
+            "title": row["title"],
+            "messages": list(row["messages"]),
+            "updated_at": row["updated_at"],
+        }
+
+    async def save_conversation(
+        self,
+        email: str,
+        conversation_id: str,
+        title: str,
+        messages: list[dict[str, Any]],
+    ) -> None:
+        self._rows[(email, conversation_id)] = {
+            "id": conversation_id,
+            "title": title[:120],
+            "messages": _sanitize_messages(messages),
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
 
 
 class ConversationStore:

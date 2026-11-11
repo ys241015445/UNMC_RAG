@@ -13,6 +13,22 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 def create_ui_router(*, app_name: str, school_email_domain: str) -> APIRouter:
     router = APIRouter()
 
+    @router.get("/setting", response_class=HTMLResponse)
+    def settings_page(request: Request) -> HTMLResponse:
+        catalog = get_condition_catalog()
+        first = catalog.conditions[0]
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            {
+                "app_name": app_name,
+                "shared_rules": first.shared_rules,
+                "shared_rules_without_rag": first.shared_rules_no_rag,
+                "conditions": catalog.conditions,
+            },
+            headers={"Cache-Control": "no-store"},
+        )
+
     @router.get("/", response_class=HTMLResponse)
     def chat_page(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(

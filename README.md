@@ -180,10 +180,10 @@ The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest
 
 ### Coolify (GitHub App)
 
-One GitHub repo → one Coolify resource → one container. nginx on **:80** serves the static chat page and proxies `/api`, `/health`, `/ready`, and the study paths (`/k7q2`, `/m3x9`, `/p8d4`, `/t5w1`) to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
+One GitHub repo → one Coolify resource → one container. nginx on **:80** serves the static chat page and proxies `/api`, `/health`, `/ready`, `/setting`, and the study paths (`/k7q2`, `/m3x9`, `/p8d4`, `/t5w1`) to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
 
-1. Resource type **Docker Compose**, branch **unmc_exp**.
-2. Compose file **`docker-compose.yaml`**. Never select `compose.local.yaml`. `compose.yaml` is the same stack if a resource is already pointed at that name.
+1. Resource type **Docker Compose**, branch **main**.
+2. Compose file **`docker-compose.yaml`**. It builds **`Dockerfile.coolify`** (nginx + FastAPI, both corpora). Never select `compose.local.yaml`. `compose.yaml` is the same stack if a resource is already pointed at that name.
 3. **Do not set `APP_IMAGE`.**
 4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`, and `UNMC_RAG_DATA_ENCRYPTION_KEY` (participant emails and transcripts are stored encrypted).
 5. Domain → service **app**, container port **80**.
@@ -224,7 +224,7 @@ This stage uses **local keyword retrieval** (no embeddings / pgvector yet). Conf
 ```bash
 cp .env.example .env
 # Confirm:
-# UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl
+# UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl,data/scraped/nfp/documents.jsonl
 # UNMC_RAG_MINIMUM_RETRIEVAL_SCORE=0.3
 # UNMC_RAG_COURSE_TERMS=...includes graduation,shuttle,etc...
 # LLM_API_KEY=... LLM_MODEL=glm-4.5-air (optional grounded generation)
@@ -241,8 +241,8 @@ curl -X POST http://localhost:8000/api/v1/chat \
   -d '{"question":"When is the next graduation ceremony?"}'
 ```
 
-If `UNMC_RAG_CORPUS_PATH` is unset or the file is missing, behavior matches the empty
-retriever (insufficient evidence).
+If `UNMC_RAG_CORPUS_PATH` is unset or none of the listed files exist, behavior matches
+the empty retriever (insufficient evidence). Comma-separated paths are loaded together.
 
 ### Common environment variables
 
@@ -256,7 +256,7 @@ retriever (insufficient evidence).
 | `UNMC_RAG_SCHOOL_EMAIL_DOMAIN` | Allowed school email domain |
 | `UNMC_RAG_COURSE_TERMS` | Topic-gate keywords for the prototype |
 | `UNMC_RAG_MINIMUM_RETRIEVAL_SCORE` | Minimum evidence score |
-| `UNMC_RAG_CORPUS_PATH` | Path to local `documents.jsonl` for keyword retrieval |
+| `UNMC_RAG_CORPUS_PATH` | Comma-separated paths to local `documents.jsonl` files for keyword retrieval |
 | `UNMC_RAG_CHUNK_SIZE` / `CHUNK_OVERLAP` | Chunk size and overlap |
 | `UNMC_RAG_RETRIEVAL_TOP_K` | Max chunks returned |
 | `UNMC_RAG_EXPERIMENT_HISTORY_MESSAGES` | Prior study-chat messages sent to the model (default 16) |
@@ -282,7 +282,8 @@ supabase/            # Postgres migrations (pgvector + rag schema)
 docker-compose.yaml  # Coolify GitHub App
 compose.yaml         # same stack, alternate filename
 compose.local.yaml   # local 8080:80 only
-Dockerfile           # nginx + FastAPI all-in-one
+Dockerfile.coolify   # Coolify image (nginx + FastAPI)
+Dockerfile           # local / registry image
 ```
 
 See [docs/architecture.md](./docs/architecture.md) for the full picture.

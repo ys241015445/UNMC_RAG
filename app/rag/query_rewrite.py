@@ -16,7 +16,9 @@ SYSTEM_PROMPT = (
     "3) Expand morphology (graduate/graduates -> graduation ceremony date).\n"
     "4) Keep only useful retrieval keywords for campus docs.\n"
     "5) Prefer canonical terms: graduation, ceremony, date, shuttle, counselling, "
-    "timetable, appeals, examination, visa, wellbeing, amenities, registry.\n"
+    "timetable, appeals, examination, visa, wellbeing, amenities, registry, "
+    "nfp, progression, attendance, grading, misconduct, module, assessment, "
+    "admissions, complaints.\n"
     "Reply with ONLY the rewritten query text. No quotes, no JSON, no explanation."
 )
 
