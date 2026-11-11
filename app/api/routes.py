@@ -3,12 +3,19 @@ from typing import Annotated
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.api.experiment import create_experiment_router
 from app.auth.policy import SchoolEmailPolicy
 from app.rag.service import ChatService
 
 
+class HistoryMessage(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=2_000)
+
+
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2_000)
+    history: list[HistoryMessage] = Field(default_factory=list, max_length=6)
 
 
 class CitationResponse(BaseModel):
@@ -44,7 +51,10 @@ def create_api_router(
                 detail="A valid school email identity is required in this prototype",
             ) from error
 
-        result = chat_service.answer(payload.question)
+        result = chat_service.answer(
+            payload.question,
+            history=[{"role": item.role, "content": item.content} for item in payload.history],
+        )
         return ChatResponse(
             status=result.status,
             reason=result.reason,
@@ -60,4 +70,5 @@ def create_api_router(
             ],
         )
 
+    router.include_router(create_experiment_router(chat_service, school_email_policy))
     return router

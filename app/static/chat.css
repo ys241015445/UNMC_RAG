@@ -303,6 +303,101 @@ body {
   color: var(--danger);
 }
 
+.chat-app {
+  min-height: 100vh;
+}
+
+.chat-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100% - 2rem));
+  padding-top: 1.75rem;
+  padding-bottom: 1rem;
+}
+
+.chat-shell .hero {
+  margin-bottom: 0.75rem;
+}
+
+.message-list {
+  flex: 1 1 auto;
+  min-height: 16rem;
+  max-height: calc(100vh - 22rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.25rem 0.1rem 1rem;
+  scroll-behavior: smooth;
+}
+
+.bubble {
+  max-width: min(36rem, 92%);
+  padding: 0.8rem 0.95rem;
+  border-radius: 16px;
+  line-height: 1.55;
+  box-shadow: var(--shadow);
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bubble-role {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bubble-assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.bubble-assistant .bubble-role {
+  color: var(--ink-soft);
+}
+
+.bubble-user {
+  align-self: flex-end;
+  background: var(--accent-deep);
+  color: #f7fbf9;
+}
+
+.bubble-user .bubble-role {
+  color: rgba(247, 251, 249, 0.78);
+}
+
+.bubble-sources {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+}
+
+.bubble-sources a {
+  color: var(--accent-deep);
+}
+
+.composer {
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.composer-note {
+  margin: -0.35rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
 @media (max-width: 640px) {
   .page {
     padding-top: 2rem;

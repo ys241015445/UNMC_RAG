@@ -20,7 +20,7 @@ class StubGenerator:
         self.fail = fail
         self.called = False
 
-    def generate(self, question: str, chunks: list[RetrievedChunk]) -> str:
+    def generate(self, question: str, chunks: list[RetrievedChunk], history=None) -> str:
         self.called = True
         if self.fail:
             raise LLMError("boom")
@@ -107,7 +107,7 @@ def test_uses_llm_generator_when_configured() -> None:
 
 def test_uses_query_rewriter_for_retrieval() -> None:
     class Rewriter:
-        def rewrite(self, question: str) -> str:
+        def rewrite(self, question: str, history=None) -> str:
             return "graduation ceremony date"
 
     class AllowAllTopics:
@@ -162,3 +162,66 @@ def test_generation_failure_is_refused() -> None:
     result = service.answer("graduation date?")
     assert result.status == "refused"
     assert result.reason == "generation_failed"
+
+
+class StubTurnGenerator(StubGenerator):
+    def __init__(self) -> None:
+        super().__init__("Persona reply")
+        self.turn_calls: list[dict[str, object]] = []
+        self.direct_calls: list[dict[str, object]] = []
+
+    def generate_turn(self, question, chunks, *, system_prompt, history, temperature, max_tokens):
+        self.turn_calls.append({"chunks": chunks, "system_prompt": system_prompt})
+        return self.text
+
+    def generate_direct(self, question, *, system_prompt, history, temperature, max_tokens):
+        self.direct_calls.append({"question": question, "system_prompt": system_prompt})
+        return "Answer without documents"
+
+
+def test_rag_off_skips_retrieval_and_evidence_threshold() -> None:
+    retriever = StubRetriever([])  # would trigger insufficient_evidence when RAG is on
+    generator = StubTurnGenerator()
+    service = ChatService(
+        guardrails=GuardrailPolicy(course_terms={"graduation"}),
+        retriever=retriever,
+        generator=generator,
+        minimum_score=0.9,
+    )
+
+    result = service.answer_in_context(
+        "When is the graduation ceremony?",
+        history=[],
+        system_prompt="persona rules",
+        use_rag=False,
+    )
+
+    assert retriever.called is False
+    assert generator.direct_calls != []
+    assert generator.turn_calls == []
+    assert result.status == "answered"
+    assert result.reason == "answered_without_retrieval"
+    assert result.answer == "Answer without documents"
+    assert result.citations == []
+
+
+def test_rag_off_still_refuses_off_topic() -> None:
+    retriever = StubRetriever([])
+    generator = StubTurnGenerator()
+    service = ChatService(
+        guardrails=GuardrailPolicy(course_terms={"graduation"}),
+        retriever=retriever,
+        generator=generator,
+    )
+
+    result = service.answer_in_context(
+        "Recommend a movie for me",
+        history=[],
+        system_prompt="persona rules",
+        use_rag=False,
+    )
+
+    assert result.status == "refused"
+    assert result.reason == "off_topic"
+    assert retriever.called is False
+    assert generator.direct_calls == []

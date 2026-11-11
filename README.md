@@ -34,6 +34,26 @@ The chat API uses the `X-School-Email` header as a demo identity gate. That head
 can be forged and is **for local development only**—do not expose it as real auth on
 the public internet. Complete magic-link or campus SSO before any pilot.
 
+## Psychology experiment (competence × warmth)
+
+Four participant links share one multi-turn chat screen. The server picks the persona.
+Participants are not shown condition names. Mapping and storage details:
+[docs/experiment-conditions.md](./docs/experiment-conditions.md).
+Prompts live in [app/experiment/conditions.json](./app/experiment/conditions.json).
+
+| Path | Condition | Competence | Warmth |
+|------|-----------|------------|--------|
+| `/k7q2` | LL | low | low |
+| `/m3x9` | LH | low | high |
+| `/p8d4` | HL | high | low |
+| `/t5w1` | HH | high | high |
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Open <http://localhost:8000/k7q2> (or `/m3x9`, `/p8d4`, `/t5w1`). The transcript stays on the page, and each follow-up is sent with that session's saved history. Every session and message is stored with the school email, condition id, and opaque path in `rag.chat_sessions` and `rag.chat_messages` (migration `supabase/migrations/20261104150000_create_experiment_conversations.sql`). Apply that migration before collecting data. Without `DATABASE_URL`, transcripts stay in process memory only.
+
 ---
 
 ## Docs
@@ -115,15 +135,13 @@ cp .env.example .env
 # Edit .env: DATABASE_URL, LLM_API_KEY
 
 docker compose -f docker-compose.yaml -f compose.local.yaml up -d --build
-docker compose -f docker-compose.yaml -f compose.local.yaml ps
+docker compose ps
 curl -s http://localhost:8080/health
 curl -s http://localhost:8080/ready
 ```
 
 Open <http://localhost:8080/>.  
 One `app` container serves the UI on port 80 and proxies `/api`, `/health`, and `/ready` to FastAPI. Postgres is **Supabase**, not a Compose service.
-
-About two minutes after boot the app asks `When is the next graduation ceremony?` through the real RAG path, then repeats every 96 hours. If the result is not `answered`, it emails `SMTP_TO_ADDRESS`. Set `SMTP_HOST` (and mailbox credentials) or the probe still runs but only logs.
 
 ### Supabase
 
@@ -162,17 +180,17 @@ The pushed tag looks like `ccr.ccs.tencentyun.com/your-namespace/unmc-rag:latest
 
 ### Coolify (GitHub App)
 
-One GitHub repo → one Coolify resource → one container. nginx on **:80** serves the chat UI and proxies `/api`, `/health`, `/ready` to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
+One GitHub repo → one Coolify resource → one container. nginx on **:80** serves the static chat page and proxies `/api`, `/health`, `/ready`, and the study paths (`/k7q2`, `/m3x9`, `/p8d4`, `/t5w1`) to FastAPI on `127.0.0.1:8000`. Postgres stays on Supabase.
 
-1. Resource type **Docker Compose**, branch **main**.
-2. Compose file **`docker-compose.yaml`**. Never select `compose.local.yaml`.
+1. Resource type **Docker Compose**, branch **unmc_exp**.
+2. Compose file **`docker-compose.yaml`**. Never select `compose.local.yaml`. `compose.yaml` is the same stack if a resource is already pointed at that name.
 3. **Do not set `APP_IMAGE`.**
-4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`. For failure mail, also set `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`.
+4. Environment: paste [`.env.coolify.example`](./.env.coolify.example). Required: `DATABASE_URL`, `LLM_API_KEY`, and `UNMC_RAG_DATA_ENCRYPTION_KEY` (participant emails and transcripts are stored encrypted).
 5. Domain → service **app**, container port **80**.
-6. Docker / Coolify healthchecks are disabled (they were marking the stack unhealthy during startup).
-7. Redeploy. Open `/health` then the site root.
+6. Docker / Coolify healthchecks stay off (they were marking the stack unhealthy during startup).
+7. Redeploy. Open `/health`, then `/` and one study path.
 
-If the container is **Exited**, read **app** logs (not the build/helper container). Startup prints `[unmc-rag] starting uvicorn` / `starting nginx`.
+If the container is **Exited**, read **app** logs. Startup prints `[unmc-rag] starting uvicorn` / `starting nginx`.
 
 ### Tests
 
@@ -197,14 +215,7 @@ python scripts/scrape_current_students.py \
 ```
 
 Outputs: `documents.jsonl`, `pages/*.md`, `index.json`, `attachments.jsonl`,
-`run_meta.json`. Only `documents.jsonl` is committed.
-
-NFP handbooks (PDF and Excel) are converted separately:
-
-```bash
-pip install -e ".[ingest]"
-python scripts/build_nfp_corpus.py --source-dir "/path/to/NFP Resources"
-```
+`run_meta.json` (directory is gitignored by default).
 
 ### Connect scraped corpus to the Q&A prototype
 
@@ -213,7 +224,7 @@ This stage uses **local keyword retrieval** (no embeddings / pgvector yet). Conf
 ```bash
 cp .env.example .env
 # Confirm:
-# UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl,data/scraped/nfp/documents.jsonl
+# UNMC_RAG_CORPUS_PATH=data/scraped/current_students/documents.jsonl
 # UNMC_RAG_MINIMUM_RETRIEVAL_SCORE=0.3
 # UNMC_RAG_COURSE_TERMS=...includes graduation,shuttle,etc...
 # LLM_API_KEY=... LLM_MODEL=glm-4.5-air (optional grounded generation)
@@ -237,7 +248,7 @@ retriever (insufficient evidence).
 
 | Variable | Description |
 |----------|-------------|
-| `APP_IMAGE` | Optional TCR tag for `make docker-push` only. **Unset** on GitHub App Coolify |
+| `APP_IMAGE` | Local / `make docker-push` tag only. **Unset** on GitHub App Coolify |
 | `DATABASE_URL` | Supabase Session pooler URI (`postgresql+asyncpg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`) |
 | `LLM_API_BASE` | External model API base (Zhipu default `https://open.bigmodel.cn/api/paas/v4/`) |
 | `LLM_API_KEY` | API key (local `.env` only; never commit) |
@@ -248,12 +259,8 @@ retriever (insufficient evidence).
 | `UNMC_RAG_CORPUS_PATH` | Path to local `documents.jsonl` for keyword retrieval |
 | `UNMC_RAG_CHUNK_SIZE` / `CHUNK_OVERLAP` | Chunk size and overlap |
 | `UNMC_RAG_RETRIEVAL_TOP_K` | Max chunks returned |
-| `UNMC_RAG_PROBE_ENABLED` | Background simulated query (`true` by default in Compose) |
-| `UNMC_RAG_PROBE_INTERVAL_HOURS` | Probe interval (default `96`) |
-| `UNMC_RAG_PROBE_STARTUP_DELAY_SECONDS` | First probe delay after boot (default `120`) |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP for failure mail; unset `SMTP_HOST` skips sending |
-| `SMTP_TO_ADDRESS` | Failure recipient (default `yellow.sea@live.cn`) |
-| `SMTP_FROM_ADDRESS` | From address; falls back to `SMTP_USERNAME` |
+| `UNMC_RAG_EXPERIMENT_HISTORY_MESSAGES` | Prior study-chat messages sent to the model (default 16) |
+| `UNMC_RAG_EXPERIMENT_CONDITIONS_PATH` | Optional override for `app/experiment/conditions.json` |
 
 ---
 
@@ -262,7 +269,6 @@ retriever (insufficient evidence).
 ```
 app/api/          # HTTP API
 app/auth/         # Email policy and identity-provider interfaces
-app/healthcheck/  # 96h simulated query + SMTP failure mail
 app/guardrails/   # Input and topic scoping
 app/ingestion/    # File / LMS / web ingest interfaces
 app/rag/          # Retrieval and chat orchestration
@@ -271,9 +277,10 @@ app/web/          # Jinja UI routes (local uvicorn)
 frontend/         # static chat page copied into the app image
 tests/            # pytest
 docs/             # PRD, architecture
-deploy/           # nginx + container entrypoint
-supabase/         # Postgres migrations (pgvector + rag schema)
+deploy/              # nginx + container entrypoint
+supabase/            # Postgres migrations (pgvector + rag schema)
 docker-compose.yaml  # Coolify GitHub App
+compose.yaml         # same stack, alternate filename
 compose.local.yaml   # local 8080:80 only
 Dockerfile           # nginx + FastAPI all-in-one
 ```

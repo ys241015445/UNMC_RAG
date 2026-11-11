@@ -1,17 +1,25 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
 from app.guardrails.policy import GuardrailDecision, GuardrailPolicy
 from app.llm.client import LLMError
-from app.rag.contracts import RetrievedChunk, Retriever
+from app.rag.contracts import DialogueTurn, RetrievedChunk, Retriever
 
 
 class AnswerGenerator(Protocol):
-    def generate(self, question: str, chunks: list[RetrievedChunk]) -> str: ...
+    def generate(
+        self,
+        question: str,
+        chunks: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> str: ...
 
 
 class QueryRewriterProto(Protocol):
-    def rewrite(self, question: str) -> str: ...
+    def rewrite(
+        self, question: str, history: list[dict[str, str]] | None = None
+    ) -> str: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +55,9 @@ class ChatService:
         self._generator = generator
         self._query_rewriter = query_rewriter
 
-    def answer(self, question: str) -> ChatResult:
+    def answer(
+        self, question: str, history: list[dict[str, str]] | None = None
+    ) -> ChatResult:
         guardrail_result = self._guardrails.evaluate(question)
         if guardrail_result.decision is GuardrailDecision.BLOCK:
             return ChatResult(
@@ -56,16 +66,7 @@ class ChatService:
                 layer=guardrail_result.layer,
             )
 
-        search_query = question
-        if self._query_rewriter is not None:
-            try:
-                rewritten = self._query_rewriter.rewrite(question)
-                if rewritten:
-                    # Keep original terms too so rewrite misses do not drop hits.
-                    search_query = f"{question}\n{rewritten}"
-            except LLMError:
-                search_query = question
-
+        search_query = self._build_search_query(question, history)
         ranked = self._retriever.search(search_query)
         chunks = [chunk for chunk in ranked if chunk.score >= self._minimum_score]
         if not chunks:
@@ -75,20 +76,12 @@ class ChatService:
                 layer="evidence",
             )
 
-        citations = [
-            Citation(
-                source_id=chunk.source_id,
-                title=chunk.title,
-                location=chunk.location,
-            )
-            for chunk in chunks
-        ]
-
+        citations = self._citations_for(chunks)
         if self._generator is None:
             answer = "\n\n".join(chunk.text for chunk in chunks)
         else:
             try:
-                answer = self._generator.generate(question, chunks)
+                answer = self._generator.generate(question, chunks, history=history)
             except LLMError:
                 return ChatResult(
                     status="refused",
@@ -104,3 +97,218 @@ class ChatService:
             answer=answer,
             citations=citations,
         )
+
+    def _build_search_query(
+        self, question: str, history: list[dict[str, str]] | None
+    ) -> str:
+        if self._query_rewriter is not None:
+            try:
+                rewritten = self._query_rewriter.rewrite(question, history=history)
+                if rewritten:
+                    # Keep original terms too so rewrite misses do not drop hits.
+                    return f"{question}\n{rewritten}"
+            except LLMError:
+                pass
+        if history:
+            # No rewriter: fold in the previous user turn so short follow-ups
+            # still carry their subject into keyword retrieval.
+            for message in reversed(history):
+                if message.get("role") == "user" and message.get("content"):
+                    previous = " ".join(str(message["content"]).split())
+                    if previous and previous != question:
+                        return f"{question}\n{previous}"
+                    break
+        return question
+
+    def answer_in_context(
+        self,
+        question: str,
+        *,
+        history: Sequence[DialogueTurn],
+        system_prompt: str,
+        temperature: float = 0.2,
+        max_tokens: int = 1024,
+        use_rag: bool = True,
+    ) -> ChatResult:
+        """Answer one study turn with a persona prompt and prior transcript.
+
+        ``use_rag=False`` skips retrieval and the evidence threshold entirely and
+        lets the model answer from general knowledge. Guardrails still run so
+        off-topic and injection requests are still refused.
+        """
+
+        prior_user = ""
+        for turn in reversed(history):
+            if turn.role == "user" and turn.content.strip():
+                prior_user = turn.content.strip()
+                break
+
+        guardrail_result = self._guardrail_for_turn(question, prior_user)
+        if guardrail_result.decision is GuardrailDecision.BLOCK:
+            return ChatResult(
+                status="refused",
+                reason=guardrail_result.reason,
+                layer=guardrail_result.layer,
+            )
+
+        if not use_rag:
+            if self._generator is None:
+                return ChatResult(
+                    status="refused",
+                    reason="generation_failed",
+                    layer="output",
+                )
+            try:
+                answer = self._generate_direct(
+                    question,
+                    history=history,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            except LLMError:
+                return ChatResult(
+                    status="refused",
+                    reason="generation_failed",
+                    layer="output",
+                )
+            return ChatResult(
+                status="answered",
+                reason="answered_without_retrieval",
+                layer="output",
+                answer=answer,
+                citations=[],
+            )
+
+        chunks = self._supporting_chunks(question, context_prefix=prior_user)
+        if not chunks:
+            return ChatResult(
+                status="refused",
+                reason="insufficient_evidence",
+                layer="evidence",
+            )
+
+        citations = self._citations_for(chunks)
+        if self._generator is None:
+            answer = "\n\n".join(chunk.text for chunk in chunks)
+        else:
+            try:
+                answer = self._generate_in_context(
+                    question,
+                    chunks,
+                    history=history,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            except LLMError:
+                return ChatResult(
+                    status="refused",
+                    reason="generation_failed",
+                    layer="output",
+                    citations=citations,
+                )
+
+        return ChatResult(
+            status="answered",
+            reason="grounded_in_course_material",
+            layer="output",
+            answer=answer,
+            citations=citations,
+        )
+
+    def _guardrail_for_turn(self, question: str, prior_user: str):
+        """Keep injection checks on the current message.
+
+        A short follow-up often drops the topic word. If the previous user
+        question was in scope, judge the follow-up together with that question.
+        """
+
+        current = self._guardrails.evaluate(question)
+        if current.decision is GuardrailDecision.ALLOW or current.reason != "off_topic":
+            return current
+        if not prior_user:
+            return current
+        contextual = self._guardrails.evaluate(f"{prior_user}\n{question}")
+        if contextual.reason == "prompt_injection":
+            return current
+        return contextual
+
+    def _supporting_chunks(
+        self,
+        question: str,
+        *,
+        context_prefix: str = "",
+    ) -> list[RetrievedChunk]:
+        search_query = question
+        if self._query_rewriter is not None:
+            try:
+                rewritten = self._query_rewriter.rewrite(question)
+                if rewritten:
+                    # Keep original terms too so rewrite misses do not drop hits.
+                    search_query = f"{question}\n{rewritten}"
+            except LLMError:
+                search_query = question
+        if context_prefix:
+            search_query = f"{context_prefix}\n{search_query}"
+        ranked = self._retriever.search(search_query)
+        return [chunk for chunk in ranked if chunk.score >= self._minimum_score]
+
+    def _generate_direct(
+        self,
+        question: str,
+        *,
+        history: Sequence[DialogueTurn],
+        system_prompt: str,
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        generate_direct = getattr(self._generator, "generate_direct", None)
+        if callable(generate_direct):
+            return generate_direct(
+                question,
+                system_prompt=system_prompt,
+                history=history,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        generator = self._generator
+        if generator is None:
+            raise RuntimeError("generator is not configured")
+        return generator.generate(question, [])
+
+    def _generate_in_context(
+        self,
+        question: str,
+        chunks: list[RetrievedChunk],
+        *,
+        history: Sequence[DialogueTurn],
+        system_prompt: str,
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        generate_turn = getattr(self._generator, "generate_turn", None)
+        if callable(generate_turn):
+            return generate_turn(
+                question,
+                chunks,
+                system_prompt=system_prompt,
+                history=history,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        generator = self._generator
+        if generator is None:
+            raise RuntimeError("generator is not configured")
+        return generator.generate(question, chunks)
+
+    @staticmethod
+    def _citations_for(chunks: list[RetrievedChunk]) -> list[Citation]:
+        return [
+            Citation(
+                source_id=chunk.source_id,
+                title=chunk.title,
+                location=chunk.location,
+            )
+            for chunk in chunks
+        ]

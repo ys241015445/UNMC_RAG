@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ssl
 from pathlib import Path
+from urllib.parse import urlparse
 
 import asyncpg
 import certifi
@@ -33,7 +34,11 @@ async def create_pool(database_url: str) -> asyncpg.Pool | None:
     dsn = to_asyncpg_dsn(database_url)
     if not dsn:
         return None
-    ssl_context = _ssl_context()
+    # Local Docker Postgres has no SSL; Supabase pooler requires it.
+    host = urlparse(dsn).hostname or ""
+    ssl_context: ssl.SSLContext | str | None = (
+        "disable" if host in {"localhost", "127.0.0.1", "::1"} else _ssl_context()
+    )
     return await asyncpg.create_pool(
         dsn=dsn,
         min_size=POOL_MIN_SIZE,
@@ -41,7 +46,6 @@ async def create_pool(database_url: str) -> asyncpg.Pool | None:
         ssl=ssl_context,
         statement_cache_size=0,
         command_timeout=15,
-        timeout=20,
     )
 
 

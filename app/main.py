@@ -7,16 +7,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.conversations import create_conversations_router
 from app.api.routes import create_api_router
 from app.auth.policy import SchoolEmailPolicy
-from app.config import (
-    get_database_settings,
-    get_probe_settings,
-    get_settings,
-    get_smtp_settings,
-)
+from app.config import get_database_settings, get_settings
+from app.conversations.store import InMemoryConversationStore
 from app.db import close_pool, create_pool, ping_db
-from app.healthcheck.loop import start_background_probe, stop_background_probe
+from app.privacy.schema import ensure_privacy_columns
 from app.rag.factory import build_chat_service
 from app.web.ui import create_ui_router
 
@@ -39,16 +36,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.exception("Failed to connect to Supabase Postgres")
             pool = None
     app.state.db_pool = pool
-    start_background_probe(
-        app,
-        chat_service=chat_service,
-        probe_settings=get_probe_settings(),
-        smtp_settings=get_smtp_settings(),
-    )
+    if pool is not None:
+        try:
+            await ensure_privacy_columns(pool)
+        except Exception:
+            logger.exception("Failed to prepare encrypted participant columns")
+    if getattr(app.state, "memory_store", None) is None:
+        app.state.memory_store = InMemoryConversationStore()
+    if pool is None:
+        logger.warning(
+            "DATABASE_URL is unset; study conversations stay in process memory until restart"
+        )
     try:
         yield
     finally:
-        await stop_background_probe(app)
         await close_pool(getattr(app.state, "db_pool", None))
 
 
@@ -58,6 +59,7 @@ app = FastAPI(
     description="Answers only questions supported by on-campus course evidence.",
     lifespan=lifespan,
 )
+app.state.memory_store = InMemoryConversationStore()
 app.include_router(
     create_ui_router(
         app_name=settings.app_name,
@@ -69,6 +71,9 @@ app.include_router(
         chat_service=chat_service,
         school_email_policy=SchoolEmailPolicy(settings.school_email_domain),
     )
+)
+app.include_router(
+    create_conversations_router(school_email_policy=SchoolEmailPolicy(settings.school_email_domain))
 )
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

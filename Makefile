@@ -26,7 +26,7 @@ docker-up:
 	docker compose -f docker-compose.yaml -f compose.local.yaml up --build
 
 docker-down:
-	docker compose down
+	docker compose -f docker-compose.yaml -f compose.local.yaml down
 
 docker-build:
 	docker build -t $(APP_IMAGE) -t $(TCR_IMAGE):$(TCR_TAG) .

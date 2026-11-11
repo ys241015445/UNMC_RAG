@@ -1,6 +1,7 @@
 # Coolify + GitHub App (canonical).
-# Resource type: Docker Compose · file: docker-compose.yaml · branch: main
+# Resource type: Docker Compose · file: docker-compose.yaml · branch: unmc_exp
 # Domain → service `app`, container port 80. Do not set APP_IMAGE.
+# Do not add a Docker healthcheck: it marks the stack unhealthy during startup.
 # Do not use compose.local.yaml on Coolify (that file only publishes localhost:8080).
 
 services:
@@ -13,28 +14,20 @@ services:
       - SERVICE_FQDN_APP_80
       - UNMC_RAG_APP_NAME=${UNMC_RAG_APP_NAME:-UNMC Course Assistant}
       - UNMC_RAG_SCHOOL_EMAIL_DOMAIN=${UNMC_RAG_SCHOOL_EMAIL_DOMAIN:-unmc.edu}
-      - UNMC_RAG_COURSE_TERMS=${UNMC_RAG_COURSE_TERMS:-calculus,linear algebra,graduation,shuttle,counselling,timetable,appeals,examination,visa,wellbeing,amenities,nfp,progression,attendance,grading,misconduct,module,assessment,admissions,complaints}
+      - UNMC_RAG_COURSE_TERMS=${UNMC_RAG_COURSE_TERMS:-calculus,linear algebra,graduation,shuttle,counselling,timetable,appeals,examination,visa,wellbeing,amenities}
       - UNMC_RAG_MINIMUM_RETRIEVAL_SCORE=${UNMC_RAG_MINIMUM_RETRIEVAL_SCORE:-0.3}
-      - UNMC_RAG_CORPUS_PATH=${UNMC_RAG_CORPUS_PATH:-data/scraped/current_students/documents.jsonl,data/scraped/nfp/documents.jsonl}
+      - UNMC_RAG_CORPUS_PATH=${UNMC_RAG_CORPUS_PATH:-data/scraped/current_students/documents.jsonl}
       - UNMC_RAG_CHUNK_SIZE=${UNMC_RAG_CHUNK_SIZE:-500}
       - UNMC_RAG_CHUNK_OVERLAP=${UNMC_RAG_CHUNK_OVERLAP:-80}
       - UNMC_RAG_RETRIEVAL_TOP_K=${UNMC_RAG_RETRIEVAL_TOP_K:-5}
+      - UNMC_RAG_EXPERIMENT_HISTORY_MESSAGES=${UNMC_RAG_EXPERIMENT_HISTORY_MESSAGES:-16}
+      - UNMC_RAG_EXPERIMENT_CONDITIONS_PATH=${UNMC_RAG_EXPERIMENT_CONDITIONS_PATH:-}
+      - UNMC_RAG_DATA_ENCRYPTION_KEY=${UNMC_RAG_DATA_ENCRYPTION_KEY:-}
       - LLM_API_BASE=${LLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4/}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-glm-4.5-air}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-}
       - DATABASE_URL=${DATABASE_URL:-}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USERNAME=${SMTP_USERNAME:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS:-}
-      - SMTP_TO_ADDRESS=${SMTP_TO_ADDRESS:-yellow.sea@live.cn}
-      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
-      - UNMC_RAG_PROBE_ENABLED=${UNMC_RAG_PROBE_ENABLED:-true}
-      - UNMC_RAG_PROBE_INTERVAL_HOURS=${UNMC_RAG_PROBE_INTERVAL_HOURS:-96}
-      - UNMC_RAG_PROBE_STARTUP_DELAY_SECONDS=${UNMC_RAG_PROBE_STARTUP_DELAY_SECONDS:-120}
-      - "UNMC_RAG_PROBE_QUESTION=${UNMC_RAG_PROBE_QUESTION:-When is the next graduation ceremony?}"
     expose:
       - "80"
     restart: unless-stopped
