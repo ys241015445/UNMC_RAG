@@ -20,7 +20,15 @@ def test_opaque_paths_render_the_same_chat_shell() -> None:
         assert 'id="chat-form"' in html
         assert 'id="school-email"' in html
         assert 'id="submit-btn"' in html
-        assert ">Send<" in html
+        assert ">Ask<" in html
+        assert ">Send<" not in html
+        assert "Sign in with your school email" in html
+        assert "Start chatting" in html
+        assert "+ New chat" in html
+        assert "History" in html
+        assert "Ask about student affairs" in html
+        assert "When is the next graduation ceremony?" in html
+        assert 'value="student@' not in html
         assert f'data-entry-path="{path}"' in html
         assert "/static/session-chat.js" in html
 
@@ -51,5 +59,6 @@ def test_session_script_does_not_list_conditions() -> None:
     assert "active-email" in script
     assert "sessionStorage" in script
     assert "X-School-Email" in script
+    assert 'method: "DELETE"' in script
     for token in (*PATHS, "LL", "LH", "HL", "HH", "competence", "warmth"):
         assert token not in script

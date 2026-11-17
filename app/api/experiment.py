@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.auth.policy import SchoolEmailPolicy
@@ -66,6 +66,8 @@ class SessionSummary(BaseModel):
     session_id: str
     created_at: datetime
     updated_at: datetime
+    title: str = ""
+    preview: str = ""
 
 
 class SessionListResponse(BaseModel):
@@ -166,16 +168,24 @@ def create_experiment_router(
         email = _require_email(school_email_policy, school_email)
         store = resolve_conversation_store(request)
         sessions = await store.list_sessions(email, condition.entry_path)
-        return SessionListResponse(
-            sessions=[
-                SessionSummary(
-                    session_id=session.id,
-                    created_at=session.created_at,
-                    updated_at=session.updated_at,
-                )
-                for session in sessions
-            ]
-        )
+        summaries: list[SessionSummary] = []
+        for session in sessions:
+            messages = await store.list_messages(session.id)
+            summaries.append(_session_summary(session, messages))
+        return SessionListResponse(sessions=summaries)
+
+    @router.delete("/chat/{entry_path}/sessions", status_code=status.HTTP_204_NO_CONTENT)
+    async def clear_sessions(
+        entry_path: str,
+        request: Request,
+        school_email: Annotated[str | None, Header(alias="X-School-Email")] = None,
+    ) -> Response:
+        condition = _require_condition(entry_path)
+        _require_enabled(condition.entry_path)
+        email = _require_email(school_email_policy, school_email)
+        store = resolve_conversation_store(request)
+        await store.delete_sessions(email, condition.entry_path)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @router.get(
         "/chat/{entry_path}/sessions/{session_id}",
@@ -286,6 +296,32 @@ def _history_from(messages: list[MessageRecord]) -> list[DialogueTurn]:
         if message.role in {"user", "assistant"} and message.content.strip():
             history.append(DialogueTurn(role=message.role, content=message.content))
     return history
+
+
+def _session_summary(session: SessionRecord, messages: list[MessageRecord]) -> SessionSummary:
+    title = ""
+    preview = ""
+    for message in messages:
+        text = " ".join(message.content.split())
+        if message.role == "user" and text and not title:
+            title = text
+        if message.role == "assistant" and message.status != "opening" and text:
+            preview = text
+    if not title:
+        title = "New chat"
+    return SessionSummary(
+        session_id=session.id,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        title=_clip(title, 140),
+        preview=_clip(preview, 180),
+    )
+
+
+def _clip(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "…"
 
 
 def _public_message(message: MessageRecord) -> TranscriptMessage:

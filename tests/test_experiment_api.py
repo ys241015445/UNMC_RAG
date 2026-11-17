@@ -315,6 +315,9 @@ def test_sessions_for_email_are_isolated_and_resume_loads_history() -> None:
     assert other_email.json()["session_id"] not in ids
     assert "created_at" in body["sessions"][0]
     assert "updated_at" in body["sessions"][0]
+    assert body["sessions"][0]["title"] == "When is the graduation ceremony?"
+    assert body["sessions"][0]["preview"] == "Grounded reply."
+    assert "condition_id" not in body["sessions"][0]
 
     bob_list = client.get("/api/v1/chat/k7q2/sessions", headers=bob)
     bob_ids = [item["session_id"] for item in bob_list.json()["sessions"]]
@@ -336,6 +339,41 @@ def test_sessions_for_email_are_isolated_and_resume_loads_history() -> None:
     assert rows
     assert {row.school_email for row in rows} == {"ada@unmc.edu"}
     assert all(row.condition_id == "LL" for row in rows)
+
+
+def test_clear_sessions_removes_only_that_email_on_that_path() -> None:
+    store = InMemoryConversationStore()
+    client = _client(store, RecordingGenerator(), ChunkRetriever())
+    ada = {"X-School-Email": "ada@unmc.edu"}
+    bob = {"X-School-Email": "bob@unmc.edu"}
+    kept_path = client.post(
+        "/api/v1/chat/m3x9/messages",
+        json={"message": "When is the graduation ceremony?"},
+        headers=ada,
+    )
+    kept_email = client.post(
+        "/api/v1/chat/k7q2/messages",
+        json={"message": "When is the graduation ceremony?"},
+        headers=bob,
+    )
+    client.post(
+        "/api/v1/chat/k7q2/messages",
+        json={"message": "When is the graduation ceremony?"},
+        headers=ada,
+    )
+
+    denied = client.delete("/api/v1/chat/k7q2/sessions")
+    cleared = client.delete("/api/v1/chat/k7q2/sessions", headers=ada)
+
+    assert denied.status_code == 401
+    assert cleared.status_code == 204
+    assert client.get("/api/v1/chat/k7q2/sessions", headers=ada).json()["sessions"] == []
+    still_there = client.get("/api/v1/chat/m3x9/sessions", headers=ada).json()["sessions"]
+    assert [item["session_id"] for item in still_there] == [kept_path.json()["session_id"]]
+    bob_left = client.get("/api/v1/chat/k7q2/sessions", headers=bob).json()["sessions"]
+    assert [item["session_id"] for item in bob_left] == [kept_email.json()["session_id"]]
+    assert kept_path.json()["session_id"] in store.sessions
+    assert kept_email.json()["session_id"] in store.sessions
 
 
 def test_session_list_requires_school_email() -> None:

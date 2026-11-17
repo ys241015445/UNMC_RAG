@@ -21,9 +21,9 @@ Restart the server after changing an entry path. Prompt text, openings, refusals
 
 ## What participants see
 
-Each path serves a multi-turn chat: a transcript, school-email field, and a composer. The transcript stays on the page and in `sessionStorage` for that path. Follow-up questions are sent to `POST /api/v1/chat/{path}/messages` with the saved `session_id`. The server loads that session's messages and sends them to the model with the path's system prompt.
+Each path serves the same screen. It opens on a school-email sign-in. After that, the page is a chat: the condition’s opening line, starter questions, a transcript, a composer, and a History list of that email’s conversations on that path only. **+ New chat** starts a fresh thread and leaves older ones in History. Refresh keeps the thread that was open in this browser. The same email on another device can open History and resume a saved thread. Follow-up questions are sent to `POST /api/v1/chat/{path}/messages` with JSON `{"message": "..."}` and the saved `session_id`. The server loads that session's messages and sends them to the model with the path's system prompt.
 
-The browser never receives `condition_id`. Refusal codes are stored in the database; the bubble shows the persona's refusal sentence from `refusals` in the JSON file.
+The browser never receives `condition_id`. Refusal codes are stored in the database; the bubble shows the persona's refusal sentence from `refusals` in the JSON file. Sources under an answer are the campus pages the retriever used.
 
 ## Turning links on and off
 
@@ -70,7 +70,7 @@ Tables live in the private `rag` schema, with row-level security enabled and no 
 
 The identity header is the same demo gate as the rest of this prototype. It is not SSO. Without `DATABASE_URL`, transcripts stay in process memory and disappear on restart.
 
-The school email is the resume key for a path. `GET /api/v1/chat/{path}/sessions` with `X-School-Email` lists that address’s sessions on that path only, newest first (`session_id`, `created_at`, `updated_at`; no condition id). The chat page does this when the email is entered or changed, loads the latest transcript, and keeps sending later turns on that session. `sessionStorage` stores the session id under the email and path, so a refresh continues the same thread. A different email, or the same email on another path, does not see those messages.
+The school email is the resume key for a path. `GET /api/v1/chat/{path}/sessions` with `X-School-Email` lists that address’s sessions on that path only, newest first (`session_id`, `created_at`, `updated_at`, plus a `title` and `preview` taken from the transcript; no condition id). `DELETE /api/v1/chat/{path}/sessions` with the same header removes that address’s sessions on that path only. The chat page loads the list after sign-in. It reopens the thread stored in `sessionStorage` for this browser; otherwise it starts empty and leaves past threads under History. A different email, or the same email on another path, does not see those messages.
 
 Example once the API is running:
 

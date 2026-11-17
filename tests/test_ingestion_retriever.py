@@ -98,6 +98,14 @@ def test_local_keyword_retriever_from_memory_docs() -> None:
     assert "shuttle" in hits[0].text.casefold()
 
 
+def test_build_retriever_uses_bundled_campus_corpus_when_unset() -> None:
+    retriever = build_retriever(Settings(corpus_path=""))
+    assert isinstance(retriever, LocalKeywordRetriever)
+    hits = retriever.search("When is the next graduation ceremony?")
+    assert hits
+    assert any("2027" in hit.text for hit in hits)
+
+
 def test_build_retriever_falls_back_when_corpus_missing(tmp_path: Path) -> None:
     settings = Settings(corpus_path=str(tmp_path / "missing.jsonl"))
     assert isinstance(build_retriever(settings), EmptyRetriever)
