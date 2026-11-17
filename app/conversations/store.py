@@ -60,6 +60,8 @@ class ConversationStore(Protocol):
         entry_path: str | None = None,
     ) -> list[SessionRecord]: ...
 
+    async def delete_sessions(self, school_email: str, entry_path: str) -> int: ...
+
     async def list_messages(self, session_id: str) -> list[MessageRecord]: ...
 
     async def append_message(
@@ -144,6 +146,18 @@ class InMemoryConversationStore:
             reverse=True,
         )
         return matched
+
+    async def delete_sessions(self, school_email: str, entry_path: str) -> int:
+        ids = [
+            session.id
+            for session in self.sessions.values()
+            if session.school_email == school_email and session.entry_path == entry_path
+        ]
+        for session_id in ids:
+            self.sessions.pop(session_id, None)
+            self._messages.pop(session_id, None)
+            self._activity.pop(session_id, None)
+        return len(ids)
 
     async def list_messages(self, session_id: str) -> list[MessageRecord]:
         return list(self._messages.get(session_id, []))
@@ -312,6 +326,21 @@ class PostgresConversationStore:
                     entry_path,
                 )
         return [_session_from_row(row) for row in rows]
+
+    async def delete_sessions(self, school_email: str, entry_path: str) -> int:
+        async with self._pool.acquire() as connection:
+            status = await connection.execute(
+                """
+                delete from rag.chat_sessions
+                where school_email = $1 and entry_path = $2
+                """,
+                school_email,
+                entry_path,
+            )
+        parts = str(status).split()
+        if parts and parts[-1].isdigit():
+            return int(parts[-1])
+        return 0
 
     async def append_message(
         self,

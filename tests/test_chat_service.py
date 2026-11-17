@@ -54,6 +54,26 @@ def test_refuses_when_course_evidence_is_insufficient() -> None:
     assert result.reason == "insufficient_evidence"
 
 
+def test_bundled_campus_corpus_answers_graduation_from_the_ceremony_page() -> None:
+    from app.config import Settings
+    from app.rag.factory import build_retriever
+
+    service = ChatService(
+        guardrails=GuardrailPolicy(
+            course_terms={"graduation", "shuttle", "counselling", "appeals"}
+        ),
+        retriever=build_retriever(Settings(corpus_path="")),
+        minimum_score=0.3,
+    )
+
+    result = service.answer("When is the next graduation ceremony?")
+
+    assert result.status == "answered"
+    assert "30 January 2027" in result.answer
+    assert "Semenyih" in result.answer
+    assert "Academic Appeals" not in result.answer
+
+
 def test_returns_grounded_prototype_answer_with_citation() -> None:
     retriever = StubRetriever(
         [

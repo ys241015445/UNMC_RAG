@@ -36,7 +36,7 @@ the public internet. Complete magic-link or campus SSO before any pilot.
 
 ## Psychology experiment (competence × warmth)
 
-Four participant links share one multi-turn chat screen. The server picks the persona.
+Four participant links share one multi-turn chat screen: school-email sign-in, then a conversation that can be followed up, saved, and resumed from History. The server picks the persona.
 Participants are not shown condition names. Mapping and storage details:
 [docs/experiment-conditions.md](./docs/experiment-conditions.md).
 Prompts live in [app/experiment/conditions.json](./app/experiment/conditions.json).
@@ -52,7 +52,7 @@ Prompts live in [app/experiment/conditions.json](./app/experiment/conditions.jso
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open <http://localhost:8000/k7q2> (or `/m3x9`, `/p8d4`, `/t5w1`). The transcript stays on the page, and each follow-up is sent with that session's saved history. Every session and message is stored with the school email, condition id, and opaque path in `rag.chat_sessions` and `rag.chat_messages` (migration `supabase/migrations/20261104150000_create_experiment_conversations.sql`). Apply that migration before collecting data. Without `DATABASE_URL`, transcripts stay in process memory only.
+Open <http://localhost:8000/k7q2> (or `/m3x9`, `/p8d4`, `/t5w1`) and compare it with the reference assistant at <https://unmc.eduagent4u.com/>. Sign in with a `@unmc.edu` address, ask a campus question, then follow up in the same thread. History on that page lists the threads for that email and path. Researcher switches stay at `/prompts`. Every session and message is stored with the school email, condition id, and opaque path in `rag.chat_sessions` and `rag.chat_messages` (migration `supabase/migrations/20261104150000_create_experiment_conversations.sql`). Apply that migration before collecting data. Without `DATABASE_URL`, transcripts stay in process memory only.
 
 ---
 
@@ -122,9 +122,10 @@ curl -X POST http://localhost:8000/api/v1/chat \
   -d '{"question":"What is a derivative in calculus?"}'
 ```
 
-Without an indexed corpus (or when evidence is weak), course questions safely return
-`insufficient_evidence`. With `LLM_API_KEY` set, topic gating and grounded answers both
-use the configured chat model (`glm-4.5-air` by default).
+Questions outside student affairs, or questions the materials do not cover, return a
+refusal. With the bundled Current Students corpus, campus questions such as graduation
+and the shuttle return a short grounded answer plus sources. With `LLM_API_KEY` set,
+topic gating and grounded answers both use the configured chat model (`glm-4.5-air` by default).
 
 ### Docker Compose one-shot
 
@@ -241,8 +242,9 @@ curl -X POST http://localhost:8000/api/v1/chat \
   -d '{"question":"When is the next graduation ceremony?"}'
 ```
 
-If `UNMC_RAG_CORPUS_PATH` is unset or the file is missing, behavior matches the empty
-retriever (insufficient evidence).
+If `UNMC_RAG_CORPUS_PATH` is unset, retrieval uses
+`data/scraped/current_students/documents.jsonl`. If that variable points at a missing
+file, behavior matches the empty retriever (insufficient evidence).
 
 ### Common environment variables
 

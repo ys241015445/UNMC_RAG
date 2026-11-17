@@ -12,58 +12,97 @@
   />
   <link rel="stylesheet" href="/static/chat.css" />
 </head>
-<body
-  class="chat-app"
-  data-entry-path="{{ entry_path }}"
-  data-email-domain="{{ school_email_domain }}"
->
-  <div class="page chat-shell">
-    <header class="hero">
-      <p class="brand">{{ app_name }}</p>
-      <h1>Campus assistant</h1>
+<body class="chat-app" data-entry-path="{{ entry_path }}" data-email-domain="{{ school_email_domain }}">
+  <script>
+    try {
+      var savedEmail = sessionStorage.getItem(
+        "unmc-chat:" + (document.body.dataset.entryPath || "") + ":active-email"
+      );
+      if (savedEmail) document.body.classList.add("is-signed-in");
+    } catch (error) {}
+  </script>
+  <div class="page assistant-page">
+    <header class="hero assistant-hero">
+      <h1 class="brand">{{ app_name }}</h1>
+      <p class="assistant-kicker">Q&amp;A grounded in campus public materials</p>
       <p class="lede">
-        Ask about student services. This page keeps the conversation so you can follow up.
+        I answer questions about student affairs using published campus materials.
+        Ask follow-ups in the same conversation—I’ll use the context. If something
+        is outside that scope—or the documents don’t cover it—I’ll explain gently
+        and suggest a better way to ask.
       </p>
     </header>
 
-    <div id="message-list" class="message-list" role="log" aria-live="polite" aria-relevant="additions">
-      {% if opening_message %}
-      <article class="bubble bubble-assistant" data-role="assistant">
-        <span class="bubble-role">Assistant</span>
-        <p>{{ opening_message }}</p>
-      </article>
-      {% endif %}
-    </div>
-
-    <form id="chat-form" class="ask-form composer" autocomplete="on">
-      <label>
-        School email
+    <section id="signin-panel" class="signin-card">
+      <h2>Sign in with your school email</h2>
+      <p>
+        Your email keeps your chat history with the campus assistant. Sign in with
+        the same address on any device to see your past conversations.
+      </p>
+      <form id="signin-form" class="signin-row" autocomplete="on">
+        <label class="sr-only" for="school-email">School email</label>
         <input
           id="school-email"
           name="school_email"
           type="email"
           required
           placeholder="student@{{ school_email_domain }}"
-          value="student@{{ school_email_domain }}"
+          autocomplete="email"
         />
-      </label>
-      <p class="composer-note">
-        Your school email is saved with this conversation. Enter the same address to continue it.
-      </p>
-      <label>
-        Message
-        <textarea
-          id="question"
-          name="message"
-          rows="3"
-          required
-          maxlength="2000"
-          placeholder="Ask a question, then follow up in the same thread"
-        ></textarea>
-      </label>
-      <p id="form-error" class="error" hidden></p>
-      <button type="submit" id="submit-btn">Send</button>
-    </form>
+        <button type="submit" id="signin-btn">Start chatting</button>
+        <p id="signin-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section id="chat-panel" class="chat-card">
+      <div class="chat-toolbar">
+        <button type="button" id="new-chat" class="toolbar-btn">+ New chat</button>
+        <button type="button" id="history-toggle" class="toolbar-btn" aria-expanded="false" aria-controls="history-panel">
+          History
+        </button>
+      </div>
+      <div class="chat-stage">
+        <div id="message-list" class="message-list is-empty" role="log" aria-live="polite" aria-relevant="additions">
+          <div id="empty-state" class="empty-state">
+            <p id="empty-opening" class="empty-opening">{{ opening_message }}</p>
+            <h2>Ask about student affairs</h2>
+            <p class="empty-hint">Try one of these to start:</p>
+            <div class="starter-list">
+              <button type="button" class="starter-chip" data-suggestion="When is the next graduation ceremony?">When is the next graduation ceremony?</button>
+              <button type="button" class="starter-chip" data-suggestion="How does the campus shuttle bus work?">How does the campus shuttle bus work?</button>
+              <button type="button" class="starter-chip" data-suggestion="Where can I get counselling support?">Where can I get counselling support?</button>
+              <button type="button" class="starter-chip" data-suggestion="How do academic appeals work for UNM students?">How do academic appeals work for UNM students?</button>
+            </div>
+            <p id="history-hint" class="history-hint" hidden>Your earlier chats are under History.</p>
+          </div>
+        </div>
+        <aside id="history-panel" class="history-panel" hidden>
+          <div class="history-head">
+            <p id="history-title">History</p>
+            <button type="button" id="clear-history" class="clear-history">Clear all</button>
+          </div>
+          <ul id="history-list" class="history-list"></ul>
+        </aside>
+      </div>
+      <form id="chat-form" class="composer" autocomplete="off">
+        <p class="email-chip">
+          <span id="signed-in-email"></span>
+          <button type="button" id="change-email">(change)</button>
+        </p>
+        <div class="composer-row">
+          <label class="sr-only" for="question">Message</label>
+          <textarea
+            id="question"
+            name="message"
+            rows="1"
+            maxlength="2000"
+            placeholder="Example: When is the next graduation ceremony?"
+          ></textarea>
+          <button type="submit" id="submit-btn">Ask</button>
+        </div>
+        <p id="form-error" class="error" hidden></p>
+      </form>
+    </section>
   </div>
   <script src="/static/session-chat.js" defer></script>
 </body>

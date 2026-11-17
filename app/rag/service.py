@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -5,6 +6,7 @@ from typing import Protocol
 from app.guardrails.policy import GuardrailDecision, GuardrailPolicy
 from app.llm.client import LLMError
 from app.rag.contracts import DialogueTurn, RetrievedChunk, Retriever
+from app.rag.retrievers import stem_token, tokenize
 
 
 class AnswerGenerator(Protocol):
@@ -29,6 +31,146 @@ class ChatResult:
     layer: str
     answer: str = ""
     citations: list[Citation] = field(default_factory=list)
+
+
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+_YEAR_RE = re.compile(r"\b20\d{2}\b")
+_FOCUS_STOPS = frozenset(
+    {
+        "a", "an", "the", "is", "are", "was", "were", "be", "been", "being", "am",
+        "i", "me", "my", "we", "our", "you", "your", "he", "she", "it", "they",
+        "them", "their", "this", "that", "these", "those", "and", "or", "but", "if",
+        "of", "in", "on", "at", "to", "for", "from", "with", "as", "by", "about",
+        "into", "over", "after", "before", "when", "where", "what", "which", "who",
+        "how", "do", "does", "did", "can", "could", "should", "would", "will",
+        "just", "please", "next", "there", "have", "has", "had", "not", "no",
+    }
+)
+_MONTHS = frozenset(
+    {
+        "january", "february", "march", "april", "may", "june", "july", "august",
+        "september", "october", "november", "december",
+    }
+)
+
+
+def extractive_answer(question: str, chunks: list[RetrievedChunk]) -> str:
+    """Pick campus sentences that overlap the question when no model is configured."""
+
+    terms = _focus_terms(question)
+    pool = _chunks_for_answer(chunks, terms)
+    ranked: list[tuple[int, int, int, str]] = []
+    for chunk_index, chunk in enumerate(pool):
+        for sentence_index, sentence in enumerate(_sentences(chunk.text)):
+            cleaned = _clean_sentence(sentence)
+            if len(cleaned) < 40:
+                continue
+            score = _sentence_score(cleaned, question, terms)
+            if score <= 0:
+                continue
+            ranked.append((score, chunk_index, sentence_index, cleaned))
+
+    if not ranked:
+        return " ".join(pool[0].text.split())[:700]
+
+    ranked.sort(key=lambda item: (item[0], -item[1], -item[2]), reverse=True)
+    chosen: list[tuple[int, int, str]] = []
+    seen: set[str] = set()
+    for _score, chunk_index, sentence_index, text in ranked:
+        key = text.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        chosen.append((chunk_index, sentence_index, text))
+        if len(chosen) == 2:
+            break
+    chosen.sort()
+    return " ".join(text for _chunk_index, _sentence_index, text in chosen)
+
+
+def _chunks_for_answer(
+    chunks: list[RetrievedChunk],
+    terms: set[str],
+) -> list[RetrievedChunk]:
+    scored = [(_title_overlap(chunk.title, terms), chunk) for chunk in chunks]
+    best = max((score for score, _chunk in scored), default=0)
+    if best <= 0:
+        return chunks
+    return [chunk for score, chunk in scored if score == best]
+
+
+def _title_overlap(title: str, terms: set[str]) -> int:
+    if title.strip().startswith("-"):
+        return 0
+    return len(_focus_terms(title) & terms)
+
+
+def _sentence_score(sentence: str, question: str, terms: set[str]) -> int:
+    hits = len(_focus_terms(sentence) & terms)
+    if hits == 0:
+        return 0
+    lowered = sentence.casefold()
+    asked = question.casefold()
+    bonus = 0
+    if any(word in asked for word in ("when", "date")) and (
+        _YEAR_RE.search(sentence) or any(month in lowered for month in _MONTHS)
+    ):
+        bonus += 3
+    if "where" in asked and any(
+        word in lowered for word in ("campus", "building", "room", "located", "centre", "center")
+    ):
+        bonus += 2
+    if sentence.endswith((".", "!", "?")):
+        bonus += 2
+    else:
+        bonus -= 2
+    words = sentence.split()
+    capitals = sum(1 for word in words if word[:1].isupper())
+    if words and capitals >= max(4, int(len(words) * 0.45)):
+        bonus -= 5
+    return hits + bonus
+
+
+def _focus_terms(text: str) -> set[str]:
+    terms: set[str] = set()
+    for token in tokenize(text):
+        if token in _FOCUS_STOPS or len(token) <= 2:
+            continue
+        terms.add(token)
+        terms.add(stem_token(token))
+        if token.endswith("ies") and len(token) > 5:
+            terms.add(token[:-3] + "y")
+        elif token.endswith("s") and not token.endswith("ss") and len(token) > 4:
+            terms.add(token[:-1])
+    return terms
+
+
+def _sentences(text: str) -> list[str]:
+    return [part.strip(" -•\t") for part in _SENTENCE_RE.split(text) if part.strip()]
+
+
+def _clean_sentence(sentence: str) -> str:
+    collapsed = " ".join(sentence.split())
+    # Drop a short heading glued to the next sentence, such as "Ceremony date The upcoming...".
+    headed = re.match(r"^(\S+(?:\s+\S+){0,3})\s+([A-Z].{40,})$", collapsed)
+    if headed and _heading_word(headed.group(1).split()[0]) and len(headed.group(1).split()) <= 4:
+        collapsed = headed.group(2)
+    words = collapsed.split()
+    index = 0
+    while (
+        index < len(words) - 4
+        and _heading_word(words[index])
+        and _heading_word(words[index + 1])
+    ):
+        index += 1
+    if index >= 2:
+        return " ".join(words[index:])
+    return collapsed
+
+
+def _heading_word(word: str) -> bool:
+    letters = [char for char in word if char.isalpha()]
+    return bool(letters) and letters[0].isupper() and word[:1].isupper()
 
 
 class ChatService:
@@ -67,7 +209,7 @@ class ChatService:
 
         citations = self._citations_for(chunks)
         if self._generator is None:
-            answer = "\n\n".join(chunk.text for chunk in chunks)
+            answer = extractive_answer(question, chunks)
         else:
             try:
                 answer = self._generator.generate(question, chunks)
@@ -122,7 +264,8 @@ class ChatService:
 
         citations = self._citations_for(chunks)
         if self._generator is None:
-            answer = "\n\n".join(chunk.text for chunk in chunks)
+            focus = f"{prior_user}\n{question}" if prior_user else question
+            answer = extractive_answer(focus, chunks)
         else:
             try:
                 answer = self._generate_in_context(

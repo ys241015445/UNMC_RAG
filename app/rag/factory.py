@@ -10,15 +10,24 @@ from app.rag.query_rewrite import QueryRewriter
 from app.rag.retrievers import EmptyRetriever, LocalKeywordRetriever
 from app.rag.service import AnswerGenerator, ChatService
 
+_BUNDLED_CORPUS = (
+    Path(__file__).resolve().parents[2]
+    / "data"
+    / "scraped"
+    / "current_students"
+    / "documents.jsonl"
+)
+
 
 def build_retriever(settings: Settings | None = None) -> Retriever:
-    """Build a retriever from settings; fall back to empty when corpus is missing."""
-    resolved = settings or get_settings()
-    corpus = resolved.corpus_path.strip()
-    if not corpus:
-        return EmptyRetriever()
+    """Build a retriever from settings.
 
-    path = Path(corpus)
+    An empty corpus path uses the scraped Current Students file shipped with
+    this repo. An explicit path that is missing still returns no evidence.
+    """
+    resolved = settings or get_settings()
+    configured = resolved.corpus_path.strip()
+    path = Path(configured) if configured else _BUNDLED_CORPUS
     if not path.is_file():
         return EmptyRetriever()
 
